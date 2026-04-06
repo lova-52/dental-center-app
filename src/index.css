@@ -1,0 +1,196 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobile-first: touch targets */
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply antialiased;
+  }
+}
+
+/* Portal: form inputs - mobile optimized */
+@layer components {
+  .input-portal {
+    @apply w-full min-h-[44px] rounded-xl border border-gray-200 bg-white px-4 py-3 text-base text-gray-800 outline-none transition-all duration-200;
+    @apply focus:border-primary focus:ring-2 focus:ring-primary/20;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center min-h-[44px] rounded-xl bg-primary px-5 py-2.5 font-medium text-white shadow-md transition-all duration-200 hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center min-h-[44px] rounded-xl bg-gray-100 px-5 py-2.5 font-medium text-gray-800 transition-all duration-200 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 active:scale-[0.98];
+  }
+  .card-portal {
+    @apply rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-6;
+  }
+}
+
+/* React Calendar - responsive */
+.react-calendar {
+  @apply w-full max-w-full rounded-xl border-0 bg-white font-sans;
+}
+.react-calendar__tile {
+  @apply rounded-lg py-2 text-xs transition-colors sm:text-sm;
+}
+.react-calendar__tile--active {
+  @apply bg-primary text-white;
+}
+.react-calendar__tile:enabled:hover {
+  @apply bg-primary/10;
+}
+.react-calendar__navigation button {
+  @apply min-h-[44px] rounded-lg text-gray-700 hover:bg-gray-100;
+}
+.react-calendar__month-view__days__day--weekend {
+  @apply text-gray-500;
+}
+.react-calendar__month-view__weekdays {
+  @apply text-xs sm:text-sm;
+}
+
+/* Calendar system view: professional / futuristic */
+.calendar-system .react-calendar {
+  @apply w-full border-0 bg-transparent font-sans;
+}
+.calendar-system .react-calendar__navigation {
+  @apply mb-2 flex items-center justify-between gap-1;
+}
+.calendar-system .react-calendar__navigation button {
+  @apply flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg text-sm font-medium text-slate-700 transition-colors;
+  @apply hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 disabled:opacity-50;
+}
+.calendar-system .react-calendar__navigation button:enabled:hover {
+  @apply bg-slate-100 text-slate-900;
+}
+.calendar-system .react-calendar__month-view__weekdays {
+  @apply text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs;
+}
+.calendar-system .react-calendar__month-view__weekdays__weekday {
+  @apply flex items-center justify-center py-2;
+}
+.calendar-system .react-calendar__month-view__weekdays__weekday abbr {
+  @apply no-underline;
+}
+.calendar-system .react-calendar__month-view__days__day {
+  @apply rounded-lg;
+}
+.calendar-system .react-calendar__tile {
+  @apply rounded-lg py-2 text-xs font-medium text-slate-700 transition-colors sm:py-2.5 sm:text-sm;
+}
+.calendar-system .react-calendar__tile:enabled:hover {
+  @apply bg-slate-100 text-slate-900;
+}
+.calendar-system .react-calendar__tile--now {
+  @apply bg-slate-100 font-semibold text-slate-800 ring-1 ring-slate-300;
+}
+.calendar-system .react-calendar__tile--active {
+  @apply bg-slate-800 text-white hover:bg-slate-700 hover:text-white;
+}
+.calendar-system .react-calendar__tile--active:enabled:hover {
+  @apply bg-slate-700 text-white;
+}
+.calendar-system .react-calendar__month-view__days__day--neighboringMonth {
+  @apply text-slate-400;
+}
+.calendar-system .react-calendar__month-view__days__day--weekend {
+  @apply text-slate-500;
+}
+.calendar-system .react-calendar__month-view__days__day--weekend.react-calendar__tile--active {
+  @apply text-white;
+}
+
+/* Global typography + layout system */
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  h1 {
+    @apply text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl;
+  }
+
+  h2 {
+    @apply text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl;
+  }
+
+  h3 {
+    @apply text-lg font-semibold text-slate-900;
+  }
+
+  p {
+    @apply text-sm text-slate-600 sm:text-base;
+  }
+}
+
+@layer components {
+  /* Page shell: dùng cho mọi trang chính */
+  .page-shell {
+    @apply mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-8;
+  }
+
+  .page-shell-narrow {
+    @apply mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-8;
+  }
+
+  .page-header {
+    @apply flex flex-wrap items-center justify-between gap-3;
+  }
+
+  .page-header-main {
+    @apply flex items-center gap-3;
+  }
+
+  .page-header-icon {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-sm sm:h-12 sm:w-12;
+  }
+
+  .page-header-title {
+    @apply text-xl font-bold tracking-tight text-slate-900 sm:text-2xl;
+  }
+
+  .page-header-subtitle {
+    @apply text-xs text-slate-500 sm:text-sm;
+  }
+
+  .toolbar {
+    @apply flex flex-wrap items-center gap-3;
+  }
+
+  .toolbar-input {
+    @apply input-portal w-full max-w-xs text-sm;
+  }
+
+  .toolbar-select {
+    @apply input-portal w-full max-w-[200px] text-sm;
+  }
+
+  .toolbar-button {
+    @apply btn-secondary text-sm;
+  }
+
+  .table-card {
+    @apply card-portal overflow-hidden p-0;
+  }
+
+  .table-head-row {
+    @apply bg-slate-50/80 text-left text-xs font-semibold uppercase tracking-wide text-slate-600;
+  }
+
+  .table-head-cell {
+    @apply px-4 py-3 sm:px-5 sm:py-3.5;
+  }
+
+  .table-row {
+    @apply border-b border-slate-100 text-sm transition-colors hover:bg-slate-50/60;
+  }
+
+  .table-cell {
+    @apply px-4 py-3 align-middle text-sm text-slate-700 sm:px-5 sm:py-3.5;
+  }
+}
