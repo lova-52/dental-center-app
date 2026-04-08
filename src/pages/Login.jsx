@@ -1,8 +1,10 @@
 // path: src/pages/Login.jsx
 import { useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+
 
 const Login = () => {
   const navigate = useNavigate();
@@ -11,6 +13,30 @@ const Login = () => {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session) {
+        navigate("/admin/dashboard");
+      }
+    };
+
+    checkSession();
+  }, [navigate]);
+
+  useEffect(() => {
+    const check = async () => {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session) {
+        navigate("/admin/dashboard");
+      }
+    };
+
+    check();
+  }, [navigate]);
+  
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
