@@ -1,9 +1,9 @@
 // src/pages/admin/Patients.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { supabase } from '../../lib/supabase';
-import { Users, UserPlus, Pencil, Trash2, FileText, ImagePlus } from 'lucide-react';
+import { Users, UserPlus, Pencil, Trash2, FileText, ImagePlus, Search, ArrowUpDown, X } from 'lucide-react';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -12,12 +12,15 @@ const Customers = () => {
     dob: '',
     contact: '',
     healthInfo: '',
+    appointment_date: '',
   });
   const [editingId, setEditingId] = useState(null);
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('created_at_desc');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,7 +53,13 @@ const Customers = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', dob: '', contact: '', healthInfo: '' });
+    setFormData({
+      name: '',
+      dob: '',
+      contact: '',
+      healthInfo: '',
+      appointment_date: '',
+    });
     setEditingId(null);
     setFile(null);
     setPreviewUrl(null);
@@ -81,7 +90,13 @@ const Customers = () => {
       const birthYear = formData.dob ? new Date(formData.dob).getFullYear() : null;
 
       if (editingId) {
-        const updates = { full_name: formData.name, birth_year: birthYear, phone: formData.contact, note: formData.healthInfo };
+        const updates = {
+          full_name: formData.name,
+          birth_year: birthYear,
+          phone: formData.contact,
+          note: formData.healthInfo,
+          appointment_date: formData.appointment_date || null,
+        };
         if (file) {
           const res = await uploadFileToSupabase(file, editingId);
           updates.link_pfp = res.path;
@@ -95,14 +110,17 @@ const Customers = () => {
           const res = await uploadFileToSupabase(file, newId);
           link_pfp_path = res.path;
         }
-        const { error } = await supabase.from('customers').insert([{
-          id: newId,
-          full_name: formData.name,
-          birth_year: birthYear,
-          phone: formData.contact,
-          note: formData.healthInfo,
-          link_pfp: link_pfp_path,
-        }]);
+        const { error } = await supabase.from('customers').insert([
+          {
+            id: newId,
+            full_name: formData.name,
+            birth_year: birthYear,
+            phone: formData.contact,
+            note: formData.healthInfo,
+            appointment_date: formData.appointment_date || null,
+            link_pfp: link_pfp_path,
+          },
+        ]);
         if (error) throw error;
       }
       await fetchCustomers();
@@ -123,6 +141,7 @@ const Customers = () => {
       dob: customer.birth_year ? `${customer.birth_year}-01-01` : '',
       contact: customer.phone || '',
       healthInfo: customer.note || '',
+      appointment_date: customer.appointment_date || '',
     });
     setPreviewUrl(customer.pfp_url || null);
     setFile(null);
@@ -157,6 +176,64 @@ const Customers = () => {
     }
   };
 
+  const formatDate = (value) => {
+    if (!value) return '—';
+    const [year, month, day] = String(value).split('-');
+    if (!year || !month || !day) return value;
+    return `${day}/${month}/${year}`;
+  };
+
+  const getDateValue = (value) => {
+    if (!value) return null;
+    const t = new Date(`${value}T00:00:00`).getTime();
+    return Number.isNaN(t) ? null : t;
+  };
+
+  const filteredCustomers = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+
+    const filtered = customers.filter((customer) => {
+      if (!q) return true;
+      const haystack = [
+        customer.full_name,
+        customer.phone,
+        customer.note,
+        customer.appointment_date,
+        customer.birth_year ? String(customer.birth_year) : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortBy === 'name_asc' || sortBy === 'name_desc') {
+        const av = (a.full_name || '').trim().toLowerCase();
+        const bv = (b.full_name || '').trim().toLowerCase();
+        const result = av.localeCompare(bv, 'vi', { sensitivity: 'base' });
+        return sortBy === 'name_asc' ? result : -result;
+      }
+
+      if (sortBy === 'appointment_date_asc' || sortBy === 'appointment_date_desc') {
+        const av = getDateValue(a.appointment_date);
+        const bv = getDateValue(b.appointment_date);
+
+        if (av === null && bv === null) return 0;
+        if (av === null) return sortBy === 'appointment_date_asc' ? 1 : -1;
+        if (bv === null) return sortBy === 'appointment_date_asc' ? -1 : 1;
+
+        return sortBy === 'appointment_date_asc' ? av - bv : bv - av;
+      }
+
+      const av = getDateValue(a.created_at) || 0;
+      const bv = getDateValue(b.created_at) || 0;
+      return bv - av;
+    });
+
+    return sorted;
+  }, [customers, searchTerm, sortBy]);
+
   return (
     <AdminLayout>
       <div className="space-y-6 sm:space-y-8">
@@ -167,7 +244,7 @@ const Customers = () => {
             </div>
             <div className="min-w-0">
               <h2 className="page-header-title">Quản lý bệnh nhân</h2>
-              <p className="page-header-subtitle">Thêm, sửa và xem phiếu điều trị</p>
+              <p className="page-header-subtitle">Thêm, sửa, tìm kiếm và sắp xếp khách hàng</p>
             </div>
           </div>
           <button
@@ -182,31 +259,87 @@ const Customers = () => {
 
         <div className="card-portal overflow-hidden p-0">
           <div className="border-b border-gray-100 bg-gray-50/50 px-4 py-3 sm:px-6 sm:py-4">
-            <h3 className="flex items-center gap-2 text-base font-semibold text-gray-800 sm:text-lg">
-              <FileText className="h-5 w-5 text-primary" />
-              Tất cả bệnh nhân
-            </h3>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <h3 className="flex items-center gap-2 text-base font-semibold text-gray-800 sm:text-lg">
+                <FileText className="h-5 w-5 text-primary" />
+                Tất cả bệnh nhân
+              </h3>
+
+              <div className="grid gap-3 lg:w-[760px] lg:grid-cols-[1fr_220px]">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Tìm theo tên, SĐT, ghi chú, ngày tư vấn..."
+                    className="input-portal w-full pl-9 pr-9"
+                  />
+                  {searchTerm ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                      aria-label="Xóa tìm kiếm"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="relative">
+                  <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="input-portal w-full appearance-none pl-9"
+                  >
+                    <option value="created_at_desc">Mới thêm nhất</option>
+                    <option value="name_asc">Tên A → Z</option>
+                    <option value="name_desc">Tên Z → A</option>
+                    <option value="appointment_date_asc">Ngày tư vấn cũ → mới</option>
+                    <option value="appointment_date_desc">Ngày tư vấn mới → cũ</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Đang hiển thị {filteredCustomers.length}/{customers.length} khách hàng.
+            </p>
           </div>
-          {customers.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 sm:p-12">Chưa có bệnh nhân.</div>
+
+          {filteredCustomers.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 sm:p-12">
+              {customers.length === 0 ? 'Chưa có bệnh nhân.' : 'Không tìm thấy khách hàng phù hợp.'}
+            </div>
           ) : (
             <>
               {/* Mobile: card layout */}
               <div className="divide-y divide-gray-100 p-4 md:hidden">
-                {customers.map((customer) => (
+                {filteredCustomers.map((customer) => (
                   <div key={customer.id} className="py-4 first:pt-0">
                     <div className="flex gap-3">
                       <div className="shrink-0">
                         {customer.pfp_url ? (
-                          <img src={customer.pfp_url} alt="" className="h-12 w-12 rounded-full object-cover ring-2 ring-gray-100" />
+                          <img
+                            src={customer.pfp_url}
+                            alt=""
+                            className="h-12 w-12 rounded-full object-cover ring-2 ring-gray-100"
+                          />
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-200 text-sm text-gray-500">—</div>
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-200 text-sm text-gray-500">
+                            —
+                          </div>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-gray-800">{customer.full_name}</p>
                         <p className="text-sm text-gray-600">{customer.phone}</p>
-                        <p className="mt-1 text-xs text-gray-500">{customer.birth_year ? `Năm sinh: ${customer.birth_year}` : ''} {customer.note ? `• ${customer.note}` : ''}</p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {customer.birth_year ? `Năm sinh: ${customer.birth_year}` : 'Năm sinh: —'}
+                          {customer.appointment_date ? ` • Tư vấn: ${formatDate(customer.appointment_date)}` : ' • Tư vấn: —'}
+                          {customer.note ? ` • ${customer.note}` : ''}
+                        </p>
                         <div className="mt-3 flex flex-wrap gap-2">
                           <button
                             type="button"
@@ -245,24 +378,36 @@ const Customers = () => {
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Họ tên</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Năm sinh</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Số điện thoại</th>
+                      <th className="px-4 py-3 sm:px-6 sm:py-4">Ngày tư vấn</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Ghi chú</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4 text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {customers.map((customer) => (
+                    {filteredCustomers.map((customer) => (
                       <tr key={customer.id} className="border-b border-gray-100 transition-colors hover:bg-gray-50/50">
                         <td className="px-4 py-3 sm:px-6 sm:py-4">
                           {customer.pfp_url ? (
-                            <img src={customer.pfp_url} alt="" className="h-10 w-10 rounded-full object-cover ring-2 ring-gray-100" />
+                            <img
+                              src={customer.pfp_url}
+                              alt=""
+                              className="h-10 w-10 rounded-full object-cover ring-2 ring-gray-100"
+                            />
                           ) : (
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-500">—</div>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-500">
+                              —
+                            </div>
                           )}
                         </td>
                         <td className="px-4 py-3 sm:px-6 sm:py-4 font-medium text-gray-800">{customer.full_name}</td>
                         <td className="px-4 py-3 sm:px-6 sm:py-4 text-gray-600">{customer.birth_year || '—'}</td>
                         <td className="px-4 py-3 sm:px-6 sm:py-4 text-gray-600">{customer.phone}</td>
-                        <td className="max-w-[200px] truncate px-4 py-3 text-sm text-gray-500 sm:px-6 sm:py-4">{customer.note || '—'}</td>
+                        <td className="px-4 py-3 sm:px-6 sm:py-4 text-gray-600">
+                          {formatDate(customer.appointment_date)}
+                        </td>
+                        <td className="max-w-[200px] truncate px-4 py-3 text-sm text-gray-500 sm:px-6 sm:py-4">
+                          {customer.note || '—'}
+                        </td>
                         <td className="px-4 py-3 sm:px-6 sm:py-4">
                           <div className="flex justify-end gap-2">
                             <button
@@ -347,17 +492,30 @@ const Customers = () => {
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Số điện thoại</label>
-                  <input
-                    type="text"
-                    placeholder="Số điện thoại"
-                    required
-                    className="input-portal"
-                    value={formData.contact}
-                    onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                  />
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Ngày tư vấn lần đầu</label>
+                    <input
+                      type="date"
+                      className="input-portal"
+                      value={formData.appointment_date}
+                      onChange={(e) => setFormData({ ...formData, appointment_date: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Số điện thoại</label>
+                    <input
+                      type="text"
+                      placeholder="Số điện thoại"
+                      required
+                      className="input-portal"
+                      value={formData.contact}
+                      onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                    />
+                  </div>
                 </div>
+
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">Thông tin sức khỏe</label>
                   <textarea
@@ -367,6 +525,7 @@ const Customers = () => {
                     onChange={(e) => setFormData({ ...formData, healthInfo: e.target.value })}
                   />
                 </div>
+
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">Ảnh đại diện</label>
                   <div className="flex flex-wrap items-center gap-4">
@@ -380,6 +539,7 @@ const Customers = () => {
                     )}
                   </div>
                 </div>
+
                 <div className="flex flex-wrap justify-end gap-3 pt-2">
                   <button
                     type="button"

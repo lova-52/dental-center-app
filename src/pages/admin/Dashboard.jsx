@@ -154,10 +154,10 @@ const AdminDashboard = () => {
 
   const kpis = [
     {
-      label: 'Tổng bệnh nhân',
+      label: 'Tổng khách hàng đặt hẹn',
       value: totalPatients,
       icon: Users,
-      description: 'Số hồ sơ bệnh nhân đã lưu',
+      description: 'Số khách hàng đã đặt hẹn',
     },
     {
       label: 'Lịch hẹn sắp tới',
