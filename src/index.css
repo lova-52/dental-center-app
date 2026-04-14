@@ -94,6 +94,21 @@
 .calendar-system .react-calendar__tile--active:enabled:hover {
   @apply bg-slate-700 text-white;
 }
+
+/* Highlight days with appointments */
+.calendar-system .react-calendar__tile.has-appointment {
+  @apply relative !bg-sky-50 !text-sky-700 font-bold ring-1 ring-sky-200/60;
+}
+
+.calendar-system .react-calendar__tile.has-appointment:not(.react-calendar__tile--active):hover {
+  @apply !bg-sky-100/80 !text-sky-800;
+}
+
+.calendar-system .react-calendar__tile.has-appointment::after {
+  content: '';
+  @apply absolute bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)];
+}
+
 .calendar-system .react-calendar__month-view__days__day--neighboringMonth {
   @apply text-slate-400;
 }

@@ -132,8 +132,16 @@ const CalendarView = () => {
     return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const formatDateTime = (dateStr) => {
-    return new Date(dateStr).toLocaleString('vi-VN');
+  const tileClassName = ({ date, view }) => {
+    if (view === 'month') {
+      const hasAppointment = appointments.some(
+        (appt) => new Date(appt.appointment_time).toDateString() === date.toDateString()
+      );
+      if (hasAppointment) {
+        return 'has-appointment';
+      }
+    }
+    return null;
   };
 
   return (
@@ -180,6 +188,7 @@ const CalendarView = () => {
                 locale="vi-VN"
                 next2Label={null}
                 prev2Label={null}
+                tileClassName={tileClassName}
                 className="w-full border-0 bg-transparent"
               />
             </div>
