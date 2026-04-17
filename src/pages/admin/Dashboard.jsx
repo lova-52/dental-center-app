@@ -97,7 +97,7 @@ const ChartCard = ({ title, subtitle, icon: Icon, children }) => (
    MAIN DASHBOARD
    ========================================================= */
 
-const AdminDashboard = () => {
+const Dashboard = () => {
   const navigate = useNavigate();
 
   const [patients, setPatients] = useState([]);
@@ -215,28 +215,28 @@ const AdminDashboard = () => {
       value: totalPatients,
       icon: Users,
       description: "Xem danh sách bệnh nhân",
-      to: "/admin/patients",
+      to: "/patients",
     },
     {
       label: "Lịch hẹn sắp tới",
       value: upcomingAppointments,
       icon: CalendarIcon,
       description: "Xem lịch hẹn",
-      to: "/admin/calendar",
+      to: "/calendar",
     },
     {
       label: "Điều trị hoàn thành",
       value: completedTreatments,
       icon: CheckCircle,
       description: "Xem phiếu điều trị",
-      to: "/admin/treatments",
+      to: "/treatments",
     },
     {
       label: "Doanh thu tháng",
       value: monthlyRevenue.toLocaleString("vi-VN") + " ₫",
       icon: TrendingUp,
       description: "Thống kê doanh thu",
-      to: "/admin/revenue",
+      to: "/revenue",
     },
   ];
 
@@ -389,4 +389,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard;
+export default Dashboard;
