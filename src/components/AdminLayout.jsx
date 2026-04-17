@@ -14,18 +14,18 @@ const AdminLayout = ({ children }) => {
   };
 
   const navItems = [
-    { type: 'link', path: '/admin/dashboard', label: 'Trang chủ', icon: LayoutDashboard, end: true },
-    { type: 'link', path: '/admin/patients', label: 'Bệnh nhân', icon: Users },
-    { type: 'link', path: '/admin/calendar', label: 'Lịch hẹn', icon: Calendar },
+    { type: 'link', path: '/', label: 'Trang chủ', icon: LayoutDashboard, end: true },
+    { type: 'link', path: '/patients', label: 'Bệnh nhân', icon: Users },
+    { type: 'link', path: '/calendar', label: 'Lịch hẹn', icon: Calendar },
     {
       type: 'group',
-      path: '/admin/inventory',
+      path: '/inventory',
       label: 'Quản lý vật tư',
       icon: Boxes,
       children: [
-        { path: '/admin/inventory/movements', label: 'Phiếu', icon: Package },
-        { path: '/admin/inventory/items', label: 'Danh mục vật tư', icon: Package },
-        { path: '/admin/inventory/suppliers', label: 'Nhà cung cấp', icon: Truck },
+        { path: '/inventory/movements', label: 'Phiếu', icon: Package },
+        { path: '/inventory/items', label: 'Danh mục vật tư', icon: Package },
+        { path: '/inventory/suppliers', label: 'Nhà cung cấp', icon: Truck },
       ],
     },
   ];

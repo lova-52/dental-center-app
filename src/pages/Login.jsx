@@ -18,24 +18,13 @@ const Login = () => {
       const { data } = await supabase.auth.getSession();
 
       if (data.session) {
-        navigate("/admin/dashboard");
+        navigate("/");
       }
     };
 
     checkSession();
   }, [navigate]);
 
-  useEffect(() => {
-    const check = async () => {
-      const { data } = await supabase.auth.getSession();
-
-      if (data.session) {
-        navigate("/admin/dashboard");
-      }
-    };
-
-    check();
-  }, [navigate]);
   
   const handleLogin = async (e) => {
     e.preventDefault();
