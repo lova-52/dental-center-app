@@ -1,11 +1,12 @@
 // src/pages/admin/Dashboard.jsx
 // Dashboard quản trị phòng khám
-// đồng bộ UI với Patients.jsx (page-header, card-portal, responsive)
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AdminLayout from "../../components/AdminLayout";
 import { supabase } from "../../lib/supabase";
+import EnableNotification from "../../components/EnableNotification";
+import { useAuth } from "../../context/AuthContext";
 
 import {
   Users,
@@ -14,13 +15,13 @@ import {
   TrendingUp,
   Activity,
   ArrowRight,
+  Bell,
+  Package
 } from "lucide-react";
 
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
@@ -36,7 +37,7 @@ const COLORS = ["#025899", "#10b981", "#f97316", "#6366f1", "#e11d48"];
 
 /* =========================================================
    KPI CARD
-   ========================================================= */
+========================================================= */
 
 const KPIStatCard = ({ label, value, icon: Icon, description, to }) => {
   const navigate = useNavigate();
@@ -74,7 +75,7 @@ const KPIStatCard = ({ label, value, icon: Icon, description, to }) => {
 
 /* =========================================================
    CHART CARD
-   ========================================================= */
+========================================================= */
 
 const ChartCard = ({ title, subtitle, icon: Icon, children }) => (
   <div className="card-portal flex flex-col">
@@ -95,23 +96,21 @@ const ChartCard = ({ title, subtitle, icon: Icon, children }) => (
 
 /* =========================================================
    MAIN DASHBOARD
-   ========================================================= */
+========================================================= */
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { role } = useAuth();
 
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [treatments, setTreatments] = useState([]);
+  const [movements, setMovements] = useState([]);
 
   const [totalPatients, setTotalPatients] = useState(0);
   const [upcomingAppointments, setUpcomingAppointments] = useState(0);
   const [completedTreatments, setCompletedTreatments] = useState(0);
   const [monthlyRevenue, setMonthlyRevenue] = useState(0);
-
-  /* =========================================================
-     LOAD DATA
-     ========================================================= */
 
   useEffect(() => {
     fetchData();
@@ -119,20 +118,14 @@ const Dashboard = () => {
 
   const fetchData = async () => {
     const { data: patientData } = await supabase.from("customers").select("*");
-
-    const { data: appointmentData } = await supabase
-      .from("appointments")
-      .select("*");
-
-    const { data: treatmentData } = await supabase
-      .from("treatments")
-      .select("*");
+    const { data: appointmentData } = await supabase.from("appointments").select("*");
+    const { data: treatmentData } = await supabase.from("treatments").select("*");
+    const { data: movementData } = await supabase.from("inventory_movements").select("*");
 
     setPatients(patientData || []);
     setAppointments(appointmentData || []);
     setTreatments(treatmentData || []);
-
-    /* KPI */
+    setMovements(movementData || []);
 
     setTotalPatients(patientData?.length || 0);
 
@@ -161,10 +154,6 @@ const Dashboard = () => {
 
     setMonthlyRevenue(revenue);
   };
-
-  /* =========================================================
-     CHART DATA
-     ========================================================= */
 
   const monthlyRevenueTrend = useMemo(() => {
     const map = new Map();
@@ -205,17 +194,14 @@ const Dashboard = () => {
     }));
   }, [treatments]);
 
-  /* =========================================================
-     KPI DATA
-     ========================================================= */
-
-  const kpis = [
+  const allKpis = [
     {
       label: "Tổng bệnh nhân",
       value: totalPatients,
       icon: Users,
       description: "Xem danh sách bệnh nhân",
       to: "/patients",
+      roles: ["admin", "developers", "telesale"],
     },
     {
       label: "Lịch hẹn sắp tới",
@@ -223,6 +209,7 @@ const Dashboard = () => {
       icon: CalendarIcon,
       description: "Xem lịch hẹn",
       to: "/calendar",
+      roles: ["admin", "developers", "telesale"],
     },
     {
       label: "Điều trị hoàn thành",
@@ -230,6 +217,7 @@ const Dashboard = () => {
       icon: CheckCircle,
       description: "Xem phiếu điều trị",
       to: "/treatments",
+      roles: ["admin", "developers"],
     },
     {
       label: "Doanh thu tháng",
@@ -237,22 +225,25 @@ const Dashboard = () => {
       icon: TrendingUp,
       description: "Thống kê doanh thu",
       to: "/revenue",
+      roles: ["admin", "developers"],
+    },
+    {
+      label: "Phiếu vật tư",
+      value: movements.length,
+      icon: Package,
+      description: "Xem quản lý vật tư",
+      to: "/inventory/movements",
+      roles: ["admin", "developers", "assistant"],
     },
   ];
 
-  /* =========================================================
-     RECENT PATIENTS
-     ========================================================= */
+  const kpis = allKpis.filter((kpi) => !kpi.roles || kpi.roles.includes(role));
 
   const recentPatients = useMemo(() => {
     return [...patients]
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .slice(0, 5);
   }, [patients]);
-
-  /* =========================================================
-     DATE
-     ========================================================= */
 
   const today = new Date();
 
@@ -263,26 +254,29 @@ const Dashboard = () => {
     year: "numeric",
   });
 
-  /* =========================================================
-     UI
-     ========================================================= */
-
   return (
     <AdminLayout>
       <div className="space-y-6 sm:space-y-8">
+
         {/* HEADER */}
 
-        <div className="page-header sm:mb-2">
-          <div className="page-header-main">
-            <div className="page-header-icon">
-              <Activity className="h-5 w-5 sm:h-6 sm:w-6" />
-            </div>
+        <div className="flex items-center justify-between">
+          <div className="page-header sm:mb-2">
+            <div className="page-header-main">
+              <div className="page-header-icon">
+                <Activity className="h-5 w-5 sm:h-6 sm:w-6" />
+              </div>
 
-            <div>
-              <h2 className="page-header-title">Bảng điều khiển</h2>
-              <p className="page-header-subtitle">{formattedDate}</p>
+              <div>
+                <h2 className="page-header-title">Bảng điều khiển</h2>
+                <p className="page-header-subtitle">{formattedDate}</p>
+              </div>
             </div>
           </div>
+
+          {/* BUTTON ENABLE PUSH */}
+
+          <EnableNotification />
         </div>
 
         {/* KPI */}
@@ -295,95 +289,110 @@ const Dashboard = () => {
 
         {/* CHARTS */}
 
-        <section className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
-          <div className="space-y-6">
+        {['admin', 'developers'].includes(role) && (
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
+            <div className="space-y-6">
+              <ChartCard
+                title="Doanh thu theo tháng"
+                subtitle="6 tháng gần nhất"
+                icon={TrendingUp}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthlyRevenueTrend}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#025899"
+                      strokeWidth={3}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </div>
+
             <ChartCard
-              title="Doanh thu theo tháng"
-              subtitle="6 tháng gần nhất"
-              icon={TrendingUp}
+              title="Trạng thái điều trị"
+              subtitle="Phân bố"
+              icon={Activity}
             >
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyRevenueTrend}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
+                <PieChart>
+                  <Pie
+                    data={treatmentStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {treatmentStatusData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
                   <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#025899"
-                    strokeWidth={3}
-                  />
-                </LineChart>
+                  <Legend />
+                </PieChart>
               </ResponsiveContainer>
             </ChartCard>
-          </div>
-
-          <ChartCard
-            title="Trạng thái điều trị"
-            subtitle="Phân bố"
-            icon={Activity}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={treatmentStatusData}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius="50%"
-                  outerRadius="80%"
-                >
-                  {treatmentStatusData.map((entry, index) => (
-                    <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </section>
+          </section>
+        )}
 
         {/* RECENT PATIENTS */}
 
-        <div className="card-portal">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-gray-900">
-              Bệnh nhân mới
-            </h3>
-
-            <button
-              onClick={() => navigate("/admin/patients")}
-              className="text-sm text-primary hover:underline"
-            >
-              Xem tất cả
-            </button>
-          </div>
-
-          <div className="divide-y">
-            {recentPatients.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between py-3 text-sm"
-              >
-                <div>
-                  <p className="font-medium text-gray-800">{p.full_name}</p>
-                  <p className="text-gray-500">{p.phone}</p>
+        {['admin', 'developers', 'telesale'].includes(role) && (
+          <section className="card-portal">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Users className="h-5 w-5" />
                 </div>
-
-                <button
-                  onClick={() =>
-                    navigate(`/admin/patient/${p.id}/incidents`)
-                  }
-                  className="text-primary text-xs hover:underline"
-                >
-                  Hồ sơ
-                </button>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Bệnh nhân mới nhất
+                </h3>
               </div>
-            ))}
-          </div>
-        </div>
+              <button
+                onClick={() => navigate("/patients")}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Xem tất cả
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 text-gray-400">
+                    <th className="pb-3 font-medium">Họ tên</th>
+                    <th className="pb-3 font-medium">Số điện thoại</th>
+                    <th className="pb-3 font-medium text-right">Ngày tạo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {recentPatients.map((p) => (
+                    <tr key={p.id} className="group hover:bg-gray-50/50">
+                      <td className="py-3 font-medium text-gray-900">
+                        {p.full_name}
+                      </td>
+                      <td className="py-3 text-gray-500">{p.phone}</td>
+                      <td className="py-3 text-right text-gray-400">
+                        {new Date(p.created_at).toLocaleDateString("vi-VN")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
       </div>
     </AdminLayout>
   );

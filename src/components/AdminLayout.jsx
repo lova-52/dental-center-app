@@ -2,26 +2,31 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Boxes, Calendar, LayoutDashboard, LogOut, Menu, Package, Stethoscope, Truck, Users, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { role } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem('loggedInUser');
     navigate('/login');
   };
 
-  const navItems = [
-    { type: 'link', path: '/', label: 'Trang chủ', icon: LayoutDashboard, end: true },
-    { type: 'link', path: '/patients', label: 'Bệnh nhân', icon: Users },
-    { type: 'link', path: '/calendar', label: 'Lịch hẹn', icon: Calendar },
+  const allNavItems = [
+    { type: 'link', path: '/', label: 'Trang chủ', icon: LayoutDashboard, end: true, roles: ['admin', 'developers', 'telesale', 'assistant'] },
+    { type: 'link', path: '/patients', label: 'Bệnh nhân', icon: Users, roles: ['admin', 'developers', 'telesale'] },
+    { type: 'link', path: '/calendar', label: 'Lịch hẹn', icon: Calendar, roles: ['admin', 'developers', 'telesale'] },
     {
       type: 'group',
       path: '/inventory',
       label: 'Quản lý vật tư',
       icon: Boxes,
+      roles: ['admin', 'developers', 'assistant'],
       children: [
         { path: '/inventory/movements', label: 'Phiếu', icon: Package },
         { path: '/inventory/items', label: 'Danh mục vật tư', icon: Package },
@@ -29,6 +34,8 @@ const AdminLayout = ({ children }) => {
       ],
     },
   ];
+
+  const navItems = allNavItems.filter((item) => !item.roles || item.roles.includes(role));
 
   useEffect(() => {
     setSidebarOpen(false);

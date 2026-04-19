@@ -55,7 +55,7 @@ const Login = () => {
       return;
     }
 
-    navigate("/admin/dashboard");
+    navigate("/");
   };
 
   return (

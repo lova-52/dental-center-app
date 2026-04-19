@@ -21,7 +21,7 @@ const AppRouter = () => {
         <Route
           path="/"
           element={
-            <ProtectedRoute allowedRoles={['admin','receptionist','telesale']}>
+            <ProtectedRoute allowedRoles={['admin', 'developers', 'telesale', 'assistant']}>
               <Dashboard />
             </ProtectedRoute>
           }
@@ -30,7 +30,7 @@ const AppRouter = () => {
         <Route
           path="/patients"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['admin', 'developers', 'telesale']}>
               <Patients />
             </ProtectedRoute>
           }
@@ -39,7 +39,7 @@ const AppRouter = () => {
         <Route
           path="/patient/:patientId/incidents"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['admin', 'developers', 'telesale']}>
               <Incidents />
             </ProtectedRoute>
           }
@@ -48,7 +48,7 @@ const AppRouter = () => {
         <Route
           path="/calendar"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['admin', 'developers', 'telesale']}>
               <CalendarView />
             </ProtectedRoute>
           }
@@ -57,7 +57,7 @@ const AppRouter = () => {
         <Route
           path="/inventory/*"
           element={
-            <ProtectedRoute allowedRoles={['admin','receptionist','telesale']}>
+            <ProtectedRoute allowedRoles={['admin', 'developers', 'assistant']}>
               <InventoryRouter />
             </ProtectedRoute>
           }
