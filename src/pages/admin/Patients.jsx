@@ -1,9 +1,48 @@
-// src/pages/admin/Patients.jsx
+// path: src/pages/admin/Patients.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { supabase } from '../../lib/supabase';
-import { Users, UserPlus, Pencil, Trash2, FileText, ImagePlus, Search, ArrowUpDown, X } from 'lucide-react';
+import {
+  Users,
+  UserPlus,
+  Pencil,
+  Trash2,
+  FileText,
+  ImagePlus,
+  Search,
+  ArrowUpDown,
+  X,
+} from 'lucide-react';
+
+const STATUS_OPTIONS = [
+  { value: 'lead', label: 'Lead' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'incare', label: 'Incare' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+const getStatusStyle = (status) => {
+  switch ((status || '').toLowerCase()) {
+    case 'lead':
+      return 'bg-blue-100 text-blue-700 ring-blue-200';
+    case 'confirmed':
+      return 'bg-emerald-100 text-emerald-700 ring-emerald-200';
+    case 'incare':
+      return 'bg-violet-100 text-violet-700 ring-violet-200';
+    case 'cancelled':
+      return 'bg-red-100 text-red-700 ring-red-200';
+    default:
+      return 'bg-gray-100 text-gray-600 ring-gray-200';
+  }
+};
+
+const getStatusLabel = (status) => {
+  const found = STATUS_OPTIONS.find(
+    (item) => item.value === (status || '').toLowerCase()
+  );
+  return found?.label || '—';
+};
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -13,6 +52,7 @@ const Customers = () => {
     contact: '',
     healthInfo: '',
     appointment_date: '',
+    status: 'lead',
   });
   const [editingId, setEditingId] = useState(null);
   const [file, setFile] = useState(null);
@@ -41,7 +81,9 @@ const Customers = () => {
     const mapped = await Promise.all(
       data.map(async (c) => {
         if (c.link_pfp) {
-          const { data: urlData } = supabase.storage.from('customers').getPublicUrl(c.link_pfp);
+          const { data: urlData } = supabase.storage
+            .from('customers')
+            .getPublicUrl(c.link_pfp);
           c.pfp_url = urlData?.publicUrl || c.link_pfp;
         } else {
           c.pfp_url = null;
@@ -49,6 +91,7 @@ const Customers = () => {
         return c;
       })
     );
+
     setCustomers(mapped);
   };
 
@@ -59,6 +102,7 @@ const Customers = () => {
       contact: '',
       healthInfo: '',
       appointment_date: '',
+      status: 'lead',
     });
     setEditingId(null);
     setFile(null);
@@ -74,11 +118,17 @@ const Customers = () => {
 
   const uploadFileToSupabase = async (fileToUpload, customerId) => {
     if (!fileToUpload) return null;
+
     const ext = fileToUpload.name.split('.').pop();
     const filename = `${customerId || crypto.randomUUID?.() || Date.now()}_${Date.now()}.${ext}`;
     const filePath = `customers/${filename}`;
-    const { error: uploadError } = await supabase.storage.from('customers').upload(filePath, fileToUpload, { upsert: true });
+
+    const { error: uploadError } = await supabase.storage
+      .from('customers')
+      .upload(filePath, fileToUpload, { upsert: true });
+
     if (uploadError) throw uploadError;
+
     const { data: urlData } = supabase.storage.from('customers').getPublicUrl(filePath);
     return { path: filePath, publicUrl: urlData?.publicUrl || null };
   };
@@ -86,6 +136,7 @@ const Customers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     try {
       const birthYear = formData.dob ? new Date(formData.dob).getFullYear() : null;
 
@@ -96,20 +147,29 @@ const Customers = () => {
           phone: formData.contact,
           note: formData.healthInfo,
           appointment_date: formData.appointment_date || null,
+          status: formData.status || 'lead',
         };
+
         if (file) {
           const res = await uploadFileToSupabase(file, editingId);
           updates.link_pfp = res.path;
         }
-        const { error } = await supabase.from('customers').update(updates).eq('id', editingId);
+
+        const { error } = await supabase
+          .from('customers')
+          .update(updates)
+          .eq('id', editingId);
+
         if (error) throw error;
       } else {
         const newId = crypto.randomUUID?.() || `c${Date.now()}`;
         let link_pfp_path = null;
+
         if (file) {
           const res = await uploadFileToSupabase(file, newId);
           link_pfp_path = res.path;
         }
+
         const { error } = await supabase.from('customers').insert([
           {
             id: newId,
@@ -118,11 +178,14 @@ const Customers = () => {
             phone: formData.contact,
             note: formData.healthInfo,
             appointment_date: formData.appointment_date || null,
+            status: formData.status || 'lead',
             link_pfp: link_pfp_path,
           },
         ]);
+
         if (error) throw error;
       }
+
       await fetchCustomers();
       resetForm();
       setIsModalOpen(false);
@@ -142,6 +205,7 @@ const Customers = () => {
       contact: customer.phone || '',
       healthInfo: customer.note || '',
       appointment_date: customer.appointment_date || '',
+      status: customer.status || 'lead',
     });
     setPreviewUrl(customer.pfp_url || null);
     setFile(null);
@@ -160,13 +224,16 @@ const Customers = () => {
 
   const handleDelete = async (customer) => {
     if (!window.confirm('Bạn có chắc muốn xóa khách hàng này?')) return;
+
     setLoading(true);
     try {
       if (customer.link_pfp) {
         await supabase.storage.from('customers').remove([customer.link_pfp]).catch(() => {});
       }
+
       const { error } = await supabase.from('customers').delete().eq('id', customer.id);
       if (error) throw error;
+
       await fetchCustomers();
     } catch (err) {
       console.error(err);
@@ -194,16 +261,19 @@ const Customers = () => {
 
     const filtered = customers.filter((customer) => {
       if (!q) return true;
+
       const haystack = [
         customer.full_name,
         customer.phone,
         customer.note,
         customer.appointment_date,
         customer.birth_year ? String(customer.birth_year) : '',
+        customer.status,
       ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
+
       return haystack.includes(q);
     });
 
@@ -244,7 +314,9 @@ const Customers = () => {
             </div>
             <div className="min-w-0">
               <h2 className="page-header-title">Quản lý bệnh nhân</h2>
-              <p className="page-header-subtitle">Thêm, sửa, tìm kiếm và sắp xếp khách hàng</p>
+              <p className="page-header-subtitle">
+                Thêm, sửa, tìm kiếm và sắp xếp khách hàng
+              </p>
             </div>
           </div>
           <button
@@ -272,7 +344,7 @@ const Customers = () => {
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Tìm theo tên, SĐT, ghi chú, ngày tư vấn..."
+                    placeholder="Tìm theo tên, SĐT, ghi chú, ngày tư vấn, trạng thái..."
                     className="input-portal w-full pl-9 pr-9"
                   />
                   {searchTerm ? (
@@ -310,7 +382,9 @@ const Customers = () => {
 
           {filteredCustomers.length === 0 ? (
             <div className="p-8 text-center text-gray-500 sm:p-12">
-              {customers.length === 0 ? 'Chưa có bệnh nhân.' : 'Không tìm thấy khách hàng phù hợp.'}
+              {customers.length === 0
+                ? 'Chưa có bệnh nhân.'
+                : 'Không tìm thấy khách hàng phù hợp.'}
             </div>
           ) : (
             <>
@@ -332,14 +406,33 @@ const Customers = () => {
                           </div>
                         )}
                       </div>
+
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-gray-800">{customer.full_name}</p>
-                        <p className="text-sm text-gray-600">{customer.phone}</p>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-800">
+                              {customer.full_name}
+                            </p>
+                            <p className="text-sm text-gray-600">{customer.phone}</p>
+                          </div>
+
+                          <span
+                            className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${getStatusStyle(customer.status)}`}
+                          >
+                            {getStatusLabel(customer.status)}
+                          </span>
+                        </div>
+
                         <p className="mt-1 text-xs text-gray-500">
-                          {customer.birth_year ? `Năm sinh: ${customer.birth_year}` : 'Năm sinh: —'}
-                          {customer.appointment_date ? ` • Tư vấn: ${formatDate(customer.appointment_date)}` : ' • Tư vấn: —'}
+                          {customer.birth_year
+                            ? `Năm sinh: ${customer.birth_year}`
+                            : 'Năm sinh: —'}
+                          {customer.appointment_date
+                            ? ` • Tư vấn: ${formatDate(customer.appointment_date)}`
+                            : ' • Tư vấn: —'}
                           {customer.note ? ` • ${customer.note}` : ''}
                         </p>
+
                         <div className="mt-3 flex flex-wrap gap-2">
                           <button
                             type="button"
@@ -379,13 +472,17 @@ const Customers = () => {
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Năm sinh</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Số điện thoại</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Ngày tư vấn</th>
+                      <th className="px-4 py-3 sm:px-6 sm:py-4">Trạng thái</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Ghi chú</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4 text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredCustomers.map((customer) => (
-                      <tr key={customer.id} className="border-b border-gray-100 transition-colors hover:bg-gray-50/50">
+                      <tr
+                        key={customer.id}
+                        className="border-b border-gray-100 transition-colors hover:bg-gray-50/50"
+                      >
                         <td className="px-4 py-3 sm:px-6 sm:py-4">
                           {customer.pfp_url ? (
                             <img
@@ -399,11 +496,24 @@ const Customers = () => {
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3 sm:px-6 sm:py-4 font-medium text-gray-800">{customer.full_name}</td>
-                        <td className="px-4 py-3 sm:px-6 sm:py-4 text-gray-600">{customer.birth_year || '—'}</td>
-                        <td className="px-4 py-3 sm:px-6 sm:py-4 text-gray-600">{customer.phone}</td>
+                        <td className="px-4 py-3 sm:px-6 sm:py-4 font-medium text-gray-800">
+                          {customer.full_name}
+                        </td>
+                        <td className="px-4 py-3 sm:px-6 sm:py-4 text-gray-600">
+                          {customer.birth_year || '—'}
+                        </td>
+                        <td className="px-4 py-3 sm:px-6 sm:py-4 text-gray-600">
+                          {customer.phone}
+                        </td>
                         <td className="px-4 py-3 sm:px-6 sm:py-4 text-gray-600">
                           {formatDate(customer.appointment_date)}
+                        </td>
+                        <td className="px-4 py-3 sm:px-6 sm:py-4">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getStatusStyle(customer.status)}`}
+                          >
+                            {getStatusLabel(customer.status)}
+                          </span>
                         </td>
                         <td className="max-w-[200px] truncate px-4 py-3 text-sm text-gray-500 sm:px-6 sm:py-4">
                           {customer.note || '—'}
@@ -455,10 +565,13 @@ const Customers = () => {
                       {editingId ? 'Cập nhật bệnh nhân' : 'Thêm bệnh nhân mới'}
                     </h3>
                     <p className="text-xs text-gray-500">
-                      {editingId ? 'Chỉnh sửa thông tin bệnh nhân.' : 'Nhập thông tin bệnh nhân mới.'}
+                      {editingId
+                        ? 'Chỉnh sửa thông tin bệnh nhân.'
+                        : 'Nhập thông tin bệnh nhân mới.'}
                     </p>
                   </div>
                 </div>
+
                 <button
                   type="button"
                   onClick={handleCloseModal}
@@ -472,70 +585,126 @@ const Customers = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2 lg:col-span-1">
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Họ và tên</label>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Họ và tên
+                    </label>
                     <input
                       type="text"
                       placeholder="Họ và tên"
                       required
                       className="input-portal"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
                     />
                   </div>
+
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Năm sinh</label>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Năm sinh
+                    </label>
                     <input
                       type="date"
                       className="input-portal"
                       value={formData.dob}
-                      onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dob: e.target.value })
+                      }
                     />
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Ngày tư vấn lần đầu</label>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Ngày tư vấn lần đầu
+                    </label>
                     <input
                       type="date"
                       className="input-portal"
                       value={formData.appointment_date}
-                      onChange={(e) => setFormData({ ...formData, appointment_date: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          appointment_date: e.target.value,
+                        })
+                      }
                     />
                   </div>
+
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Số điện thoại</label>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Số điện thoại
+                    </label>
                     <input
                       type="text"
                       placeholder="Số điện thoại"
                       required
                       className="input-portal"
                       value={formData.contact}
-                      onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, contact: e.target.value })
+                      }
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Thông tin sức khỏe</label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Trạng thái
+                  </label>
+                  <select
+                    className="input-portal"
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData({ ...formData, status: e.target.value })
+                    }
+                  >
+                    {STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Thông tin sức khỏe
+                  </label>
                   <textarea
                     placeholder="Thông tin sức khỏe"
                     className="input-portal min-h-[80px] resize-y"
                     value={formData.healthInfo}
-                    onChange={(e) => setFormData({ ...formData, healthInfo: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, healthInfo: e.target.value })
+                    }
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Ảnh đại diện</label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Ảnh đại diện
+                  </label>
                   <div className="flex flex-wrap items-center gap-4">
                     <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100">
                       <ImagePlus className="h-4 w-4" />
                       Chọn ảnh
-                      <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
                     </label>
+
                     {previewUrl && (
-                      <img src={previewUrl} alt="Xem trước" className="h-16 w-16 rounded-full object-cover ring-2 ring-gray-200" />
+                      <img
+                        src={previewUrl}
+                        alt="Xem trước"
+                        className="h-16 w-16 rounded-full object-cover ring-2 ring-gray-200"
+                      />
                     )}
                   </div>
                 </div>

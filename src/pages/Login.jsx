@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Stethoscope } from "lucide-react";
 
 
 const Login = () => {
@@ -59,37 +59,31 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] px-4">
+    <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-slate-100 via-sky-50 to-primary/5 px-4 py-8">
+      <div className="w-full max-w-sm">
 
-      <div className="w-full max-w-md">
-
-        {/* BRAND */}
         <div className="text-center mb-8">
-          <div className="text-3xl font-bold text-[#025899]">
-            🦷 Phương Sen Dental
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary text-white shadow-lg shadow-primary/25 mb-4">
+            <Stethoscope className="h-8 w-8" />
           </div>
-          <p className="text-sm text-slate-500 mt-2">
-            Hệ thống quản lý phòng khám nha khoa
-          </p>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Phương Sen Dental</h1>
+          <p className="text-sm text-slate-500 mt-1.5">Đăng nhập vào hệ thống quản lý</p>
         </div>
 
-        {/* CARD */}
-        <div className="bg-white shadow-xl rounded-2xl p-8 border border-slate-200">
+        <div className="bg-white rounded-2xl p-6 shadow-xl shadow-slate-200/60 border border-slate-100">
+          <h2 className="text-base font-semibold text-slate-700 mb-1">Chào mừng trở lại</h2>
+          <p className="text-xs text-slate-400 mb-6">Nhập thông tin để tiếp tục</p>
 
-          <h2 className="text-xl font-semibold text-slate-700 text-center mb-6">
-            Đăng nhập hệ thống
-          </h2>
-
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-4">
 
             {/* EMAIL */}
             <div className="relative">
-              <Mail className="absolute left-3 top-3.5 text-slate-400" size={18}/>
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
               <input
                 type="email"
-                placeholder="Email"
+                placeholder="Địa chỉ email"
                 required
-                className="w-full border border-slate-200 focus:border-[#025899] focus:ring-2 focus:ring-[#025899]/20 transition-all p-3 pl-10 rounded-lg outline-none text-slate-700 placeholder:text-slate-400"
+                className="input-portal w-full pl-9 pr-3 py-3"
                 value={email}
                 onChange={(e)=>setEmail(e.target.value)}
               />
@@ -97,28 +91,29 @@ const Login = () => {
 
             {/* PASSWORD */}
             <div className="relative">
-              <Lock className="absolute left-3 top-3.5 text-slate-400" size={18}/>
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
               <input
                 type={showPass ? "text":"password"}
                 placeholder="Mật khẩu"
                 required
-                className="w-full border border-slate-200 focus:border-[#025899] focus:ring-2 focus:ring-[#025899]/20 transition-all p-3 pl-10 pr-10 rounded-lg outline-none text-slate-700 placeholder:text-slate-400"
+                className="input-portal w-full pl-9 pr-10 py-3"
                 value={password}
                 onChange={(e)=>setPassword(e.target.value)}
               />
 
               <div
                 onClick={()=>setShowPass(!showPass)}
-                className="absolute right-3 top-3.5 cursor-pointer text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 hover:text-slate-600 transition-colors"
               >
-                {showPass ? <EyeOff size={18}/> : <Eye size={18}/>}
+                {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
               </div>
             </div>
 
             {/* BUTTON */}
             <button
+              type="submit"
               disabled={loading}
-              className="w-full bg-[#025899] hover:bg-[#01487a] transition-all text-white py-3 rounded-lg font-medium shadow-sm disabled:opacity-60"
+              className="btn-primary w-full mt-2"
             >
               {loading ? "Đang đăng nhập..." : "Đăng nhập"}
             </button>
@@ -126,8 +121,8 @@ const Login = () => {
           </form>
 
           {/* FOOTER */}
-          <div className="text-center text-xs text-slate-400 mt-6">
-            © 2026 Phuong Sen Dental
+          <div className="text-center text-[11px] text-slate-400 mt-6">
+            © 2025 Phương Sen Dental · Hệ thống quản lý phòng khám nha khoa
           </div>
 
         </div>
