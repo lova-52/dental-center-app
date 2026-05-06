@@ -16,19 +16,29 @@ import {
 } from 'lucide-react';
 
 const STATUS_OPTIONS = [
-  { value: 'lead', label: 'Lead' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'incare', label: 'Incare' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'lead', label: 'Khách tiềm năng' },
+  { value: 'confirmed', label: 'Đã xác nhận' },
+  { value: 'in care', label: 'Đang điều trị' },
+  { value: 'cancelled', label: 'Đã hủy' },
 ];
 
+const normalizeStatus = (status) => {
+  const value = String(status || 'lead').trim().toLowerCase();
+  if (value === 'incare') return 'in care';
+  if (value === 'in care') return 'in care';
+  if (value === 'confirmed') return 'confirmed';
+  if (value === 'cancelled') return 'cancelled';
+  if (value === 'lead') return 'lead';
+  return 'lead';
+};
+
 const getStatusStyle = (status) => {
-  switch ((status || '').toLowerCase()) {
+  switch (normalizeStatus(status)) {
     case 'lead':
       return 'bg-blue-100 text-blue-700 ring-blue-200';
     case 'confirmed':
       return 'bg-emerald-100 text-emerald-700 ring-emerald-200';
-    case 'incare':
+    case 'in care':
       return 'bg-violet-100 text-violet-700 ring-violet-200';
     case 'cancelled':
       return 'bg-red-100 text-red-700 ring-red-200';
@@ -38,9 +48,7 @@ const getStatusStyle = (status) => {
 };
 
 const getStatusLabel = (status) => {
-  const found = STATUS_OPTIONS.find(
-    (item) => item.value === (status || '').toLowerCase()
-  );
+  const found = STATUS_OPTIONS.find((item) => item.value === normalizeStatus(status));
   return found?.label || '—';
 };
 
@@ -58,14 +66,30 @@ const Customers = () => {
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('created_at_desc');
   const navigate = useNavigate();
 
+  const generateId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return `c${Date.now()}`;
+  };
+
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const fetchCustomers = async () => {
     const { data, error } = await supabase
@@ -79,7 +103,7 @@ const Customers = () => {
     }
 
     const mapped = await Promise.all(
-      data.map(async (c) => {
+      (data || []).map(async (c) => {
         if (c.link_pfp) {
           const { data: urlData } = supabase.storage
             .from('customers')
@@ -88,6 +112,9 @@ const Customers = () => {
         } else {
           c.pfp_url = null;
         }
+
+        c.status = normalizeStatus(c.status);
+
         return c;
       })
     );
@@ -112,7 +139,13 @@ const Customers = () => {
   const handleFileChange = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+
     setFile(f);
+
+    if (previewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
     setPreviewUrl(URL.createObjectURL(f));
   };
 
@@ -120,7 +153,7 @@ const Customers = () => {
     if (!fileToUpload) return null;
 
     const ext = fileToUpload.name.split('.').pop();
-    const filename = `${customerId || crypto.randomUUID?.() || Date.now()}_${Date.now()}.${ext}`;
+    const filename = `${customerId || generateId()}_${Date.now()}.${ext}`;
     const filePath = `customers/${filename}`;
 
     const { error: uploadError } = await supabase.storage
@@ -139,6 +172,7 @@ const Customers = () => {
 
     try {
       const birthYear = formData.dob ? new Date(formData.dob).getFullYear() : null;
+      const normalizedStatus = normalizeStatus(formData.status);
 
       if (editingId) {
         const updates = {
@@ -147,7 +181,7 @@ const Customers = () => {
           phone: formData.contact,
           note: formData.healthInfo,
           appointment_date: formData.appointment_date || null,
-          status: formData.status || 'lead',
+          status: normalizedStatus,
         };
 
         if (file) {
@@ -162,7 +196,7 @@ const Customers = () => {
 
         if (error) throw error;
       } else {
-        const newId = crypto.randomUUID?.() || `c${Date.now()}`;
+        const newId = generateId();
         let link_pfp_path = null;
 
         if (file) {
@@ -178,7 +212,7 @@ const Customers = () => {
             phone: formData.contact,
             note: formData.healthInfo,
             appointment_date: formData.appointment_date || null,
-            status: formData.status || 'lead',
+            status: normalizedStatus,
             link_pfp: link_pfp_path,
           },
         ]);
@@ -205,7 +239,7 @@ const Customers = () => {
       contact: customer.phone || '',
       healthInfo: customer.note || '',
       appointment_date: customer.appointment_date || '',
-      status: customer.status || 'lead',
+      status: normalizeStatus(customer.status),
     });
     setPreviewUrl(customer.pfp_url || null);
     setFile(null);
@@ -243,6 +277,38 @@ const Customers = () => {
     }
   };
 
+  const handleStatusChange = async (customerId, newStatus) => {
+    const normalizedStatus = normalizeStatus(newStatus);
+
+    setStatusUpdatingId(customerId);
+
+    const previousCustomers = customers;
+
+    setCustomers((prev) =>
+      prev.map((customer) =>
+        customer.id === customerId
+          ? { ...customer, status: normalizedStatus }
+          : customer
+      )
+    );
+
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ status: normalizedStatus })
+        .eq('id', customerId);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error(err);
+      alert('Cập nhật trạng thái thất bại.');
+
+      setCustomers(previousCustomers);
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
   const formatDate = (value) => {
     if (!value) return '—';
 
@@ -274,6 +340,7 @@ const Customers = () => {
         customer.note,
         customer.appointment_date,
         customer.birth_year ? String(customer.birth_year) : '',
+        getStatusLabel(customer.status),
         customer.status,
       ]
         .filter(Boolean)
@@ -394,7 +461,7 @@ const Customers = () => {
             </div>
           ) : (
             <>
-              {/* Mobile: card layout */}
+              {/* Mobile */}
               <div className="divide-y divide-gray-100 p-4 md:hidden">
                 {filteredCustomers.map((customer) => (
                   <div key={customer.id} className="py-4 first:pt-0">
@@ -416,17 +483,26 @@ const Customers = () => {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="font-semibold text-gray-800">
+                            <p className="text-sm font-semibold text-gray-800">
                               {customer.full_name}
                             </p>
                             <p className="text-sm text-gray-600">{customer.phone}</p>
                           </div>
 
-                          <span
-                            className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${getStatusStyle(customer.status)}`}
+                          <select
+                            value={normalizeStatus(customer.status)}
+                            onChange={(e) => handleStatusChange(customer.id, e.target.value)}
+                            disabled={statusUpdatingId === customer.id}
+                            className={`inline-flex shrink-0 rounded-full border-0 px-2.5 py-1 text-[11px] font-semibold ring-1 outline-none transition-colors ${getStatusStyle(
+                              customer.status
+                            )}`}
                           >
-                            {getStatusLabel(customer.status)}
-                          </span>
+                            {STATUS_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
                         </div>
 
                         <p className="mt-1 text-xs text-gray-500">
@@ -468,9 +544,20 @@ const Customers = () => {
                 ))}
               </div>
 
-              {/* Desktop: table */}
+              {/* Desktop */}
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full">
+                <table className="w-full table-fixed">
+                  <colgroup>
+                    <col className="w-[72px]" />
+                    <col className="w-[220px]" />
+                    <col className="w-[110px]" />
+                    <col className="w-[170px]" />
+                    <col className="w-[140px]" />
+                    <col className="w-[180px]" />
+                    <col />
+                    <col className="w-[280px]" />
+                  </colgroup>
+
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/80 text-left text-sm font-medium text-gray-600">
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Ảnh</th>
@@ -483,6 +570,7 @@ const Customers = () => {
                       <th className="px-4 py-3 sm:px-6 sm:py-4 text-right">Thao tác</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {filteredCustomers.map((customer) => (
                       <tr
@@ -515,11 +603,20 @@ const Customers = () => {
                           {formatDate(customer.appointment_date)}
                         </td>
                         <td className="px-4 py-3 sm:px-6 sm:py-4">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getStatusStyle(customer.status)}`}
+                          <select
+                            value={normalizeStatus(customer.status)}
+                            onChange={(e) => handleStatusChange(customer.id, e.target.value)}
+                            disabled={statusUpdatingId === customer.id}
+                            className={`w-full max-w-[160px] rounded-full border-0 px-3 py-1.5 text-xs font-semibold ring-1 outline-none transition-colors ${getStatusStyle(
+                              customer.status
+                            )}`}
                           >
-                            {getStatusLabel(customer.status)}
-                          </span>
+                            {STATUS_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="max-w-[200px] truncate px-4 py-3 text-sm text-gray-500 sm:px-6 sm:py-4">
                           {customer.note || '—'}
@@ -560,7 +657,7 @@ const Customers = () => {
 
         {isModalOpen && (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
-            <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl">
+            <div className="w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl sm:p-8">
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -571,13 +668,10 @@ const Customers = () => {
                       {editingId ? 'Cập nhật bệnh nhân' : 'Thêm bệnh nhân mới'}
                     </h3>
                     <p className="text-xs text-gray-500">
-                      {editingId
-                        ? 'Chỉnh sửa thông tin bệnh nhân.'
-                        : 'Nhập thông tin bệnh nhân mới.'}
+                      {editingId ? 'Chỉnh sửa thông tin bệnh nhân.' : 'Nhập thông tin bệnh nhân mới.'}
                     </p>
                   </div>
                 </div>
-
                 <button
                   type="button"
                   onClick={handleCloseModal}
@@ -605,7 +699,6 @@ const Customers = () => {
                       }
                     />
                   </div>
-
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
                       Năm sinh
@@ -638,7 +731,6 @@ const Customers = () => {
                       }
                     />
                   </div>
-
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
                       Số điện thoại
@@ -704,7 +796,6 @@ const Customers = () => {
                         className="hidden"
                       />
                     </label>
-
                     {previewUrl && (
                       <img
                         src={previewUrl}
