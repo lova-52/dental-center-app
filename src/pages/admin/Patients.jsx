@@ -19,16 +19,24 @@ const STATUS_OPTIONS = [
   { value: 'lead', label: 'Khách tiềm năng' },
   { value: 'confirmed', label: 'Đã xác nhận' },
   { value: 'in care', label: 'Đang điều trị' },
+  { value: 'done', label: 'Đã hoàn thành' },
   { value: 'cancelled', label: 'Đã hủy' },
 ];
 
 const normalizeStatus = (status) => {
   const value = String(status || 'lead').trim().toLowerCase();
+
   if (value === 'incare') return 'in care';
   if (value === 'in care') return 'in care';
+
   if (value === 'confirmed') return 'confirmed';
+
+  if (value === 'done') return 'done';
+
   if (value === 'cancelled') return 'cancelled';
+
   if (value === 'lead') return 'lead';
+
   return 'lead';
 };
 
@@ -36,12 +44,19 @@ const getStatusStyle = (status) => {
   switch (normalizeStatus(status)) {
     case 'lead':
       return 'bg-blue-100 text-blue-700 ring-blue-200';
+
     case 'confirmed':
       return 'bg-emerald-100 text-emerald-700 ring-emerald-200';
+
     case 'in care':
       return 'bg-violet-100 text-violet-700 ring-violet-200';
+
+    case 'done':
+      return 'bg-green-100 text-green-700 ring-green-200';
+
     case 'cancelled':
       return 'bg-red-100 text-red-700 ring-red-200';
+
     default:
       return 'bg-gray-100 text-gray-600 ring-gray-200';
   }
