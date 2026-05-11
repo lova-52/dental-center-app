@@ -547,7 +547,7 @@ const Customers = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => navigate(`/admin/patient/${customer.id}/incidents`)}
+                            onClick={() => navigate(`/patient/${customer.id}/incidents`)}
                             className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
                           >
                             <FileText className="h-3.5 w-3.5" /> Phiếu
@@ -654,7 +654,7 @@ const Customers = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => navigate(`/admin/patient/${customer.id}/incidents`)}
+                              onClick={() => navigate(`/patient/${customer.id}/incidents`)}
                               className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
                             >
                               <FileText className="h-3.5 w-3.5" /> Phiếu điều trị
