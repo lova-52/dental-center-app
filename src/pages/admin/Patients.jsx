@@ -28,13 +28,9 @@ const normalizeStatus = (status) => {
 
   if (value === 'incare') return 'in care';
   if (value === 'in care') return 'in care';
-
   if (value === 'confirmed') return 'confirmed';
-
   if (value === 'done') return 'done';
-
   if (value === 'cancelled') return 'cancelled';
-
   if (value === 'lead') return 'lead';
 
   return 'lead';
@@ -44,26 +40,23 @@ const getStatusStyle = (status) => {
   switch (normalizeStatus(status)) {
     case 'lead':
       return 'bg-blue-100 text-blue-700 ring-blue-200';
-
     case 'confirmed':
       return 'bg-emerald-100 text-emerald-700 ring-emerald-200';
-
     case 'in care':
       return 'bg-violet-100 text-violet-700 ring-violet-200';
-
     case 'done':
       return 'bg-green-100 text-green-700 ring-green-200';
-
     case 'cancelled':
       return 'bg-red-100 text-red-700 ring-red-200';
-
     default:
       return 'bg-gray-100 text-gray-600 ring-gray-200';
   }
 };
 
 const getStatusLabel = (status) => {
-  const found = STATUS_OPTIONS.find((item) => item.value === normalizeStatus(status));
+  const found = STATUS_OPTIONS.find(
+    (item) => item.value === normalizeStatus(status)
+  );
   return found?.label || '—';
 };
 
@@ -177,7 +170,10 @@ const Customers = () => {
 
     if (uploadError) throw uploadError;
 
-    const { data: urlData } = supabase.storage.from('customers').getPublicUrl(filePath);
+    const { data: urlData } = supabase.storage
+      .from('customers')
+      .getPublicUrl(filePath);
+
     return { path: filePath, publicUrl: urlData?.publicUrl || null };
   };
 
@@ -277,7 +273,10 @@ const Customers = () => {
     setLoading(true);
     try {
       if (customer.link_pfp) {
-        await supabase.storage.from('customers').remove([customer.link_pfp]).catch(() => {});
+        await supabase.storage
+          .from('customers')
+          .remove([customer.link_pfp])
+          .catch(() => {});
       }
 
       const { error } = await supabase.from('customers').delete().eq('id', customer.id);
@@ -301,9 +300,7 @@ const Customers = () => {
 
     setCustomers((prev) =>
       prev.map((customer) =>
-        customer.id === customerId
-          ? { ...customer, status: normalizedStatus }
-          : customer
+        customer.id === customerId ? { ...customer, status: normalizedStatus } : customer
       )
     );
 
@@ -317,7 +314,6 @@ const Customers = () => {
     } catch (err) {
       console.error(err);
       alert('Cập nhật trạng thái thất bại.');
-
       setCustomers(previousCustomers);
     } finally {
       setStatusUpdatingId(null);
@@ -547,7 +543,7 @@ const Customers = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => navigate(`/patient/${customer.id}/incidents`)}
+                            onClick={() => navigate(`/admin/patient/${customer.id}/incidents`)}
                             className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
                           >
                             <FileText className="h-3.5 w-3.5" /> Phiếu
@@ -564,12 +560,10 @@ const Customers = () => {
                 <table className="w-full table-fixed">
                   <colgroup>
                     <col className="w-[72px]" />
-                    <col className="w-[220px]" />
-                    <col className="w-[110px]" />
-                    <col className="w-[170px]" />
-                    <col className="w-[140px]" />
+                    <col className="w-[200px]" />
+                    <col className="w-[120px]" />
                     <col className="w-[180px]" />
-                    <col />
+                    <col className="w-[360px]" />
                     <col className="w-[280px]" />
                   </colgroup>
 
@@ -577,8 +571,6 @@ const Customers = () => {
                     <tr className="border-b border-gray-100 bg-gray-50/80 text-left text-sm font-medium text-gray-600">
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Ảnh</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Họ tên</th>
-                      <th className="px-4 py-3 sm:px-6 sm:py-4">Năm sinh</th>
-                      <th className="px-4 py-3 sm:px-6 sm:py-4">Số điện thoại</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Ngày tư vấn</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Trạng thái</th>
                       <th className="px-4 py-3 sm:px-6 sm:py-4">Ghi chú</th>
@@ -592,7 +584,7 @@ const Customers = () => {
                         key={customer.id}
                         className="border-b border-gray-100 transition-colors hover:bg-gray-50/50"
                       >
-                        <td className="px-4 py-3 sm:px-6 sm:py-4">
+                        <td className="px-4 py-4 sm:px-6 sm:py-4 align-top">
                           {customer.pfp_url ? (
                             <img
                               src={customer.pfp_url}
@@ -605,24 +597,33 @@ const Customers = () => {
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3 sm:px-6 sm:py-4 font-medium text-gray-800">
-                          {customer.full_name}
+
+                        <td className="px-4 py-4 sm:px-6 sm:py-4 align-top">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-gray-800">
+                              {customer.full_name}
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-gray-500">
+                              <span className="block truncate">
+                                {customer.phone || '—'}
+                              </span>
+                              <span className="block">
+                                Năm sinh: {customer.birth_year || '—'}
+                              </span>
+                            </p>
+                          </div>
                         </td>
-                        <td className="px-4 py-3 sm:px-6 sm:py-4 text-gray-600">
-                          {customer.birth_year || '—'}
-                        </td>
-                        <td className="px-4 py-3 sm:px-6 sm:py-4 text-gray-600">
-                          {customer.phone}
-                        </td>
-                        <td className="px-4 py-3 sm:px-6 sm:py-4 text-gray-600">
+
+                        <td className="px-4 py-4 sm:px-6 sm:py-4 align-top text-sm text-gray-600">
                           {formatDate(customer.appointment_date)}
                         </td>
-                        <td className="px-4 py-3 sm:px-6 sm:py-4">
+
+                        <td className="px-4 py-4 sm:px-6 sm:py-4 align-top">
                           <select
                             value={normalizeStatus(customer.status)}
                             onChange={(e) => handleStatusChange(customer.id, e.target.value)}
                             disabled={statusUpdatingId === customer.id}
-                            className={`w-full max-w-[160px] rounded-full border-0 px-3 py-1.5 text-xs font-semibold ring-1 outline-none transition-colors ${getStatusStyle(
+                            className={`w-full max-w-[180px] rounded-full border-0 px-3 py-1.5 text-xs font-semibold ring-1 outline-none transition-colors ${getStatusStyle(
                               customer.status
                             )}`}
                           >
@@ -633,10 +634,14 @@ const Customers = () => {
                             ))}
                           </select>
                         </td>
-                        <td className="max-w-[200px] truncate px-4 py-3 text-sm text-gray-500 sm:px-6 sm:py-4">
-                          {customer.note || '—'}
+
+                        <td className="px-4 py-4 sm:px-6 sm:py-4 align-top">
+                          <div className="whitespace-normal break-words text-sm leading-6 text-gray-600">
+                            {customer.note || '—'}
+                          </div>
                         </td>
-                        <td className="px-4 py-3 sm:px-6 sm:py-4">
+
+                        <td className="px-4 py-4 sm:px-6 sm:py-4 align-top">
                           <div className="flex justify-end gap-2">
                             <button
                               type="button"
