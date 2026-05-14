@@ -135,7 +135,9 @@ const Dashboard = () => {
 
     setUpcomingAppointments(upcoming?.length || 0);
 
-    const completed = treatmentData?.filter((t) => t.status === "completed");
+    const completed = patientData?.filter(
+      (p) => String(p.status || '').trim().toLowerCase() === 'done'
+    );
 
     setCompletedTreatments(completed?.length || 0);
 
@@ -212,11 +214,11 @@ const Dashboard = () => {
       roles: ["admin", "developers", "telesale"],
     },
     {
-      label: "Điều trị hoàn thành",
+      label: "Bệnh nhân hoàn thành điều trị",
       value: completedTreatments,
       icon: CheckCircle,
-      description: "Xem phiếu điều trị",
-      to: "/treatments",
+      description: "Xem bệnh nhân đã hoàn thành điều trị",
+      to: "/patients?status=done",
       roles: ["admin", "developers"],
     },
     {

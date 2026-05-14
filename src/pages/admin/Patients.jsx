@@ -1,6 +1,7 @@
 // path: src/pages/admin/Patients.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { supabase } from '../../lib/supabase';
 import {
@@ -13,6 +14,10 @@ import {
   Search,
   ArrowUpDown,
   X,
+  CalendarDays,
+  Cake,
+  Phone,
+  StickyNote,
 } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -79,6 +84,12 @@ const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('created_at_desc');
   const navigate = useNavigate();
+
+  const location = useLocation();
+    const statusFromQuery = new URLSearchParams(location.search).get('status');
+    const statusFilter = statusFromQuery
+      ? normalizeStatus(statusFromQuery)
+      : '';
 
   const generateId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -182,7 +193,10 @@ const Customers = () => {
     setLoading(true);
 
     try {
-      const birthYear = formData.dob ? new Date(formData.dob).getFullYear() : null;
+      const birthYear = formData.dob
+        ? new Date(formData.dob).getFullYear()
+        : null;
+
       const normalizedStatus = normalizeStatus(formData.status);
 
       if (editingId) {
@@ -244,6 +258,7 @@ const Customers = () => {
 
   const handleEdit = (customer) => {
     setEditingId(customer.id);
+
     setFormData({
       name: customer.full_name || '',
       dob: customer.birth_year ? `${customer.birth_year}-01-01` : '',
@@ -252,6 +267,7 @@ const Customers = () => {
       appointment_date: customer.appointment_date || '',
       status: normalizeStatus(customer.status),
     });
+
     setPreviewUrl(customer.pfp_url || null);
     setFile(null);
     setIsModalOpen(true);
@@ -271,6 +287,7 @@ const Customers = () => {
     if (!window.confirm('Bạn có chắc muốn xóa khách hàng này?')) return;
 
     setLoading(true);
+
     try {
       if (customer.link_pfp) {
         await supabase.storage
@@ -279,7 +296,11 @@ const Customers = () => {
           .catch(() => {});
       }
 
-      const { error } = await supabase.from('customers').delete().eq('id', customer.id);
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customer.id);
+
       if (error) throw error;
 
       await fetchCustomers();
@@ -300,7 +321,9 @@ const Customers = () => {
 
     setCustomers((prev) =>
       prev.map((customer) =>
-        customer.id === customerId ? { ...customer, status: normalizedStatus } : customer
+        customer.id === customerId
+          ? { ...customer, status: normalizedStatus }
+          : customer
       )
     );
 
@@ -324,6 +347,7 @@ const Customers = () => {
     if (!value) return '—';
 
     const date = new Date(value);
+
     if (isNaN(date)) return '—';
 
     const day = String(date.getDate()).padStart(2, '0');
@@ -335,7 +359,9 @@ const Customers = () => {
 
   const getDateValue = (value) => {
     if (!value) return null;
+
     const t = new Date(`${value}T00:00:00`).getTime();
+
     return Number.isNaN(t) ? null : t;
   };
 
@@ -343,7 +369,9 @@ const Customers = () => {
     const q = searchTerm.trim().toLowerCase();
 
     const filtered = customers.filter((customer) => {
-      if (!q) return true;
+      if (!q) {
+        return !statusFilter || normalizeStatus(customer.status) === statusFilter;
+      }
 
       const haystack = [
         customer.full_name,
@@ -358,30 +386,43 @@ const Customers = () => {
         .join(' ')
         .toLowerCase();
 
-      return haystack.includes(q);
+      const matchesSearch = haystack.includes(q);
+      const matchesStatus = !statusFilter || normalizeStatus(customer.status) === statusFilter;
+
+      return matchesSearch && matchesStatus;
     });
 
     const sorted = [...filtered].sort((a, b) => {
       if (sortBy === 'name_asc' || sortBy === 'name_desc') {
         const av = (a.full_name || '').trim().toLowerCase();
         const bv = (b.full_name || '').trim().toLowerCase();
-        const result = av.localeCompare(bv, 'vi', { sensitivity: 'base' });
+
+        const result = av.localeCompare(bv, 'vi', {
+          sensitivity: 'base',
+        });
+
         return sortBy === 'name_asc' ? result : -result;
       }
 
-      if (sortBy === 'appointment_date_asc' || sortBy === 'appointment_date_desc') {
+      if (
+        sortBy === 'appointment_date_asc' ||
+        sortBy === 'appointment_date_desc'
+      ) {
         const av = getDateValue(a.appointment_date);
         const bv = getDateValue(b.appointment_date);
 
         if (av === null && bv === null) return 0;
-        if (av === null) return sortBy === 'appointment_date_asc' ? 1 : -1;
-        if (bv === null) return sortBy === 'appointment_date_asc' ? -1 : 1;
+        if (av === null)
+          return sortBy === 'appointment_date_asc' ? 1 : -1;
+        if (bv === null)
+          return sortBy === 'appointment_date_asc' ? -1 : 1;
 
         return sortBy === 'appointment_date_asc' ? av - bv : bv - av;
       }
 
       const av = getDateValue(a.created_at) || 0;
       const bv = getDateValue(b.created_at) || 0;
+
       return bv - av;
     });
 
@@ -396,13 +437,18 @@ const Customers = () => {
             <div className="page-header-icon">
               <Users className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
+
             <div className="min-w-0">
-              <h2 className="page-header-title">Quản lý bệnh nhân</h2>
+              <h2 className="page-header-title">
+                Quản lý bệnh nhân
+              </h2>
+
               <p className="page-header-subtitle">
                 Thêm, sửa, tìm kiếm và sắp xếp khách hàng
               </p>
             </div>
           </div>
+
           <button
             type="button"
             onClick={handleAddNewCustomer}
@@ -424,13 +470,17 @@ const Customers = () => {
               <div className="grid gap-3 lg:w-[760px] lg:grid-cols-[1fr_220px]">
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+
                   <input
                     type="text"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Tìm theo tên, SĐT, ghi chú, ngày tư vấn, trạng thái..."
+                    onChange={(e) =>
+                      setSearchTerm(e.target.value)
+                    }
+                    placeholder="Tìm theo tên, SĐT, ghi chú..."
                     className="input-portal w-full pl-9 pr-9"
                   />
+
                   {searchTerm ? (
                     <button
                       type="button"
@@ -445,22 +495,39 @@ const Customers = () => {
 
                 <div className="relative">
                   <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
                     className="input-portal w-full appearance-none pl-9"
                   >
-                    <option value="created_at_desc">Mới thêm nhất</option>
-                    <option value="name_asc">Tên A → Z</option>
-                    <option value="name_desc">Tên Z → A</option>
-                    <option value="appointment_date_asc">Ngày tư vấn cũ → mới</option>
-                    <option value="appointment_date_desc">Ngày tư vấn mới → cũ</option>
+                    <option value="created_at_desc">
+                      Mới thêm nhất
+                    </option>
+
+                    <option value="name_asc">
+                      Tên A → Z
+                    </option>
+
+                    <option value="name_desc">
+                      Tên Z → A
+                    </option>
+
+                    <option value="appointment_date_asc">
+                      Ngày tư vấn cũ → mới
+                    </option>
+
+                    <option value="appointment_date_desc">
+                      Ngày tư vấn mới → cũ
+                    </option>
                   </select>
                 </div>
               </div>
             </div>
+
             <p className="mt-2 text-xs text-gray-500">
-              Đang hiển thị {filteredCustomers.length}/{customers.length} khách hàng.
+              Đang hiển thị {filteredCustomers.length}/
+              {customers.length} khách hàng.
             </p>
           </div>
 
@@ -475,17 +542,20 @@ const Customers = () => {
               {/* Mobile */}
               <div className="divide-y divide-gray-100 p-4 md:hidden">
                 {filteredCustomers.map((customer) => (
-                  <div key={customer.id} className="py-4 first:pt-0">
+                  <div
+                    key={customer.id}
+                    className="py-4 first:pt-0"
+                  >
                     <div className="flex gap-3">
                       <div className="shrink-0">
                         {customer.pfp_url ? (
                           <img
                             src={customer.pfp_url}
                             alt=""
-                            className="h-12 w-12 rounded-full object-cover ring-2 ring-gray-100"
+                            className="h-14 w-14 rounded-full object-cover ring-2 ring-gray-100"
                           />
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-200 text-sm text-gray-500">
+                          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-200 text-sm text-gray-500">
                             —
                           </div>
                         )}
@@ -494,37 +564,80 @@ const Customers = () => {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-800">
+                            <p className="truncate text-sm font-semibold text-gray-800">
                               {customer.full_name}
                             </p>
-                            <p className="text-sm text-gray-600">{customer.phone}</p>
+
+                            <div className="mt-1 flex items-center gap-1 text-sm text-gray-600">
+                              <Phone className="h-3.5 w-3.5 text-gray-400" />
+                              <span>{customer.phone || '—'}</span>
+                            </div>
                           </div>
 
                           <select
                             value={normalizeStatus(customer.status)}
-                            onChange={(e) => handleStatusChange(customer.id, e.target.value)}
-                            disabled={statusUpdatingId === customer.id}
+                            onChange={(e) =>
+                              handleStatusChange(
+                                customer.id,
+                                e.target.value
+                              )
+                            }
+                            disabled={
+                              statusUpdatingId === customer.id
+                            }
                             className={`inline-flex shrink-0 rounded-full border-0 px-2.5 py-1 text-[11px] font-semibold ring-1 outline-none transition-colors ${getStatusStyle(
                               customer.status
                             )}`}
                           >
                             {STATUS_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>
+                              <option
+                                key={option.value}
+                                value={option.value}
+                              >
                                 {option.label}
                               </option>
                             ))}
                           </select>
                         </div>
 
-                        <p className="mt-1 text-xs text-gray-500">
-                          {customer.birth_year
-                            ? `Năm sinh: ${customer.birth_year}`
-                            : 'Năm sinh: —'}
-                          {customer.appointment_date
-                            ? ` • Tư vấn: ${formatDate(customer.appointment_date)}`
-                            : ' • Tư vấn: —'}
-                          {customer.note ? ` • ${customer.note}` : ''}
-                        </p>
+                        {/* IMPROVED MOBILE INFO */}
+                        <div className="mt-3 space-y-2 rounded-xl bg-gray-50 p-3">
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <Cake className="h-3.5 w-3.5 text-primary" />
+                            <span className="font-medium">
+                              Năm sinh:
+                            </span>
+                            <span>
+                              {customer.birth_year || '—'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                            <span className="font-medium">
+                              Ngày tư vấn:
+                            </span>
+                            <span>
+                              {formatDate(
+                                customer.appointment_date
+                              )}
+                            </span>
+                          </div>
+
+                          <div className="flex items-start gap-2 text-xs text-gray-700">
+                            <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+
+                            <div className="min-w-0">
+                              <span className="font-medium">
+                                Ghi chú:
+                              </span>
+
+                              <p className="mt-0.5 whitespace-pre-wrap break-words leading-5 text-gray-600">
+                                {customer.note || '—'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
 
                         <div className="mt-3 flex flex-wrap gap-2">
                           <button
@@ -532,21 +645,32 @@ const Customers = () => {
                             onClick={() => handleEdit(customer)}
                             className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-200"
                           >
-                            <Pencil className="h-3.5 w-3.5" /> Sửa
+                            <Pencil className="h-3.5 w-3.5" />
+                            Sửa
                           </button>
+
                           <button
                             type="button"
-                            onClick={() => handleDelete(customer)}
+                            onClick={() =>
+                              handleDelete(customer)
+                            }
                             className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-200"
                           >
-                            <Trash2 className="h-3.5 w-3.5" /> Xóa
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Xóa
                           </button>
+
                           <button
                             type="button"
-                            onClick={() => navigate(`/admin/patient/${customer.id}/incidents`)}
+                            onClick={() =>
+                              navigate(
+                                `/admin/patient/${customer.id}/incidents`
+                              )
+                            }
                             className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
                           >
-                            <FileText className="h-3.5 w-3.5" /> Phiếu
+                            <FileText className="h-3.5 w-3.5" />
+                            Phiếu
                           </button>
                         </div>
                       </div>
@@ -569,12 +693,29 @@ const Customers = () => {
 
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/80 text-left text-sm font-medium text-gray-600">
-                      <th className="px-4 py-3 sm:px-6 sm:py-4">Ảnh</th>
-                      <th className="px-4 py-3 sm:px-6 sm:py-4">Họ tên</th>
-                      <th className="px-4 py-3 sm:px-6 sm:py-4">Ngày tư vấn</th>
-                      <th className="px-4 py-3 sm:px-6 sm:py-4">Trạng thái</th>
-                      <th className="px-4 py-3 sm:px-6 sm:py-4">Ghi chú</th>
-                      <th className="px-4 py-3 sm:px-6 sm:py-4 text-right">Thao tác</th>
+                      <th className="px-4 py-3 sm:px-6 sm:py-4">
+                        Ảnh
+                      </th>
+
+                      <th className="px-4 py-3 sm:px-6 sm:py-4">
+                        Họ tên
+                      </th>
+
+                      <th className="px-4 py-3 sm:px-6 sm:py-4">
+                        Ngày tư vấn
+                      </th>
+
+                      <th className="px-4 py-3 sm:px-6 sm:py-4">
+                        Trạng thái
+                      </th>
+
+                      <th className="px-4 py-3 sm:px-6 sm:py-4">
+                        Ghi chú
+                      </th>
+
+                      <th className="px-4 py-3 sm:px-6 sm:py-4 text-right">
+                        Thao tác
+                      </th>
                     </tr>
                   </thead>
 
@@ -603,12 +744,15 @@ const Customers = () => {
                             <p className="truncate text-sm font-medium text-gray-800">
                               {customer.full_name}
                             </p>
+
                             <p className="mt-1 text-xs leading-5 text-gray-500">
                               <span className="block truncate">
                                 {customer.phone || '—'}
                               </span>
+
                               <span className="block">
-                                Năm sinh: {customer.birth_year || '—'}
+                                Năm sinh:{' '}
+                                {customer.birth_year || '—'}
                               </span>
                             </p>
                           </div>
@@ -621,14 +765,24 @@ const Customers = () => {
                         <td className="px-4 py-4 sm:px-6 sm:py-4 align-top">
                           <select
                             value={normalizeStatus(customer.status)}
-                            onChange={(e) => handleStatusChange(customer.id, e.target.value)}
-                            disabled={statusUpdatingId === customer.id}
+                            onChange={(e) =>
+                              handleStatusChange(
+                                customer.id,
+                                e.target.value
+                              )
+                            }
+                            disabled={
+                              statusUpdatingId === customer.id
+                            }
                             className={`w-full max-w-[180px] rounded-full border-0 px-3 py-1.5 text-xs font-semibold ring-1 outline-none transition-colors ${getStatusStyle(
                               customer.status
                             )}`}
                           >
                             {STATUS_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>
+                              <option
+                                key={option.value}
+                                value={option.value}
+                              >
                                 {option.label}
                               </option>
                             ))}
@@ -645,24 +799,37 @@ const Customers = () => {
                           <div className="flex justify-end gap-2">
                             <button
                               type="button"
-                              onClick={() => handleEdit(customer)}
+                              onClick={() =>
+                                handleEdit(customer)
+                              }
                               className="inline-flex items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-200"
                             >
-                              <Pencil className="h-3.5 w-3.5" /> Sửa
+                              <Pencil className="h-3.5 w-3.5" />
+                              Sửa
                             </button>
+
                             <button
                               type="button"
-                              onClick={() => handleDelete(customer)}
+                              onClick={() =>
+                                handleDelete(customer)
+                              }
                               className="inline-flex items-center gap-1.5 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-200"
                             >
-                              <Trash2 className="h-3.5 w-3.5" /> Xóa
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Xóa
                             </button>
+
                             <button
                               type="button"
-                              onClick={() => navigate(`/patient/${customer.id}/incidents`)}
+                              onClick={() =>
+                                navigate(
+                                  `/patient/${customer.id}/incidents`
+                                )
+                              }
                               className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
                             >
-                              <FileText className="h-3.5 w-3.5" /> Phiếu điều trị
+                              <FileText className="h-3.5 w-3.5" />
+                              Phiếu điều trị
                             </button>
                           </div>
                         </td>
@@ -683,15 +850,22 @@ const Customers = () => {
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <UserPlus className="h-4 w-4" />
                   </div>
+
                   <div>
                     <h3 className="text-base font-semibold text-gray-900">
-                      {editingId ? 'Cập nhật bệnh nhân' : 'Thêm bệnh nhân mới'}
+                      {editingId
+                        ? 'Cập nhật bệnh nhân'
+                        : 'Thêm bệnh nhân mới'}
                     </h3>
+
                     <p className="text-xs text-gray-500">
-                      {editingId ? 'Chỉnh sửa thông tin bệnh nhân.' : 'Nhập thông tin bệnh nhân mới.'}
+                      {editingId
+                        ? 'Chỉnh sửa thông tin bệnh nhân.'
+                        : 'Nhập thông tin bệnh nhân mới.'}
                     </p>
                   </div>
                 </div>
+
                 <button
                   type="button"
                   onClick={handleCloseModal}
@@ -702,12 +876,16 @@ const Customers = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-4"
+              >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2 lg:col-span-1">
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
                       Họ và tên
                     </label>
+
                     <input
                       type="text"
                       placeholder="Họ và tên"
@@ -715,20 +893,28 @@ const Customers = () => {
                       className="input-portal"
                       value={formData.name}
                       onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
+                        setFormData({
+                          ...formData,
+                          name: e.target.value,
+                        })
                       }
                     />
                   </div>
+
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
                       Năm sinh
                     </label>
+
                     <input
                       type="date"
                       className="input-portal"
                       value={formData.dob}
                       onChange={(e) =>
-                        setFormData({ ...formData, dob: e.target.value })
+                        setFormData({
+                          ...formData,
+                          dob: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -739,6 +925,7 @@ const Customers = () => {
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
                       Ngày tư vấn lần đầu
                     </label>
+
                     <input
                       type="date"
                       className="input-portal"
@@ -746,15 +933,18 @@ const Customers = () => {
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          appointment_date: e.target.value,
+                          appointment_date:
+                            e.target.value,
                         })
                       }
                     />
                   </div>
+
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
                       Số điện thoại
                     </label>
+
                     <input
                       type="text"
                       placeholder="Số điện thoại"
@@ -762,7 +952,10 @@ const Customers = () => {
                       className="input-portal"
                       value={formData.contact}
                       onChange={(e) =>
-                        setFormData({ ...formData, contact: e.target.value })
+                        setFormData({
+                          ...formData,
+                          contact: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -772,15 +965,22 @@ const Customers = () => {
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
                     Trạng thái
                   </label>
+
                   <select
                     className="input-portal"
                     value={formData.status}
                     onChange={(e) =>
-                      setFormData({ ...formData, status: e.target.value })
+                      setFormData({
+                        ...formData,
+                        status: e.target.value,
+                      })
                     }
                   >
                     {STATUS_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
+                      <option
+                        key={option.value}
+                        value={option.value}
+                      >
                         {option.label}
                       </option>
                     ))}
@@ -791,12 +991,16 @@ const Customers = () => {
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
                     Thông tin sức khỏe
                   </label>
+
                   <textarea
                     placeholder="Thông tin sức khỏe"
                     className="input-portal min-h-[80px] resize-y"
                     value={formData.healthInfo}
                     onChange={(e) =>
-                      setFormData({ ...formData, healthInfo: e.target.value })
+                      setFormData({
+                        ...formData,
+                        healthInfo: e.target.value,
+                      })
                     }
                   />
                 </div>
@@ -805,10 +1009,12 @@ const Customers = () => {
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
                     Ảnh đại diện
                   </label>
+
                   <div className="flex flex-wrap items-center gap-4">
                     <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100">
                       <ImagePlus className="h-4 w-4" />
                       Chọn ảnh
+
                       <input
                         type="file"
                         accept="image/*"
@@ -816,6 +1022,7 @@ const Customers = () => {
                         className="hidden"
                       />
                     </label>
+
                     {previewUrl && (
                       <img
                         src={previewUrl}
@@ -834,7 +1041,12 @@ const Customers = () => {
                   >
                     Hủy
                   </button>
-                  <button type="submit" disabled={loading} className="btn-primary">
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn-primary"
+                  >
                     {editingId
                       ? loading
                         ? 'Đang cập nhật...'
