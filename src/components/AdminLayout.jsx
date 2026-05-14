@@ -18,9 +18,9 @@ const AdminLayout = ({ children }) => {
   };
 
   const allNavItems = [
-    { type: 'link', path: '/', label: 'Trang chủ', icon: LayoutDashboard, end: true, roles: ['admin', 'developers', 'telesale', 'assistant'] },
-    { type: 'link', path: '/patients', label: 'Bệnh nhân', icon: Users, roles: ['admin', 'developers', 'telesale'] },
-    { type: 'link', path: '/calendar', label: 'Lịch hẹn', icon: Calendar, roles: ['admin', 'developers', 'telesale'] },
+    { type: 'link', path: '/', label: 'Trang chủ', icon: LayoutDashboard, end: true, roles: ['admin', 'developers', 'telesale', 'assistant', 'receptionist'] },
+    { type: 'link', path: '/patients', label: 'Bệnh nhân', icon: Users, roles: ['admin', 'developers', 'telesale', 'receptionist'] },
+    { type: 'link', path: '/calendar', label: 'Lịch hẹn', icon: Calendar, roles: ['admin', 'developers', 'telesale', 'receptionist'] },
     {
       type: 'group',
       path: '/inventory',

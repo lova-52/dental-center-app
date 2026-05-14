@@ -203,7 +203,7 @@ const Dashboard = () => {
       icon: Users,
       description: "Xem danh sách bệnh nhân",
       to: "/patients",
-      roles: ["admin", "developers", "telesale"],
+      roles: ["admin", "developers", "telesale", "receptionist"],
     },
     {
       label: "Lịch hẹn sắp tới",
@@ -211,7 +211,7 @@ const Dashboard = () => {
       icon: CalendarIcon,
       description: "Xem lịch hẹn",
       to: "/calendar",
-      roles: ["admin", "developers", "telesale"],
+      roles: ["admin", "developers", "telesale", "receptionist"],
     },
     {
       label: "Bệnh nhân hoàn thành điều trị",
@@ -219,7 +219,7 @@ const Dashboard = () => {
       icon: CheckCircle,
       description: "Xem bệnh nhân đã hoàn thành điều trị",
       to: "/patients?status=done",
-      roles: ["admin", "developers"],
+      roles: ["admin", "developers", "receptionist"],
     },
     {
       label: "Doanh thu tháng",
@@ -227,7 +227,7 @@ const Dashboard = () => {
       icon: TrendingUp,
       description: "Thống kê doanh thu",
       to: "/revenue",
-      roles: ["admin", "developers"],
+      roles: ["admin", "developers", "receptionist"],
     },
     {
       label: "Phiếu vật tư",
@@ -235,7 +235,7 @@ const Dashboard = () => {
       icon: Package,
       description: "Xem quản lý vật tư",
       to: "/inventory/movements",
-      roles: ["admin", "developers", "assistant"],
+      roles: ["admin", "developers", "assistant", "receptionist"],
     },
   ];
 
@@ -291,7 +291,7 @@ const Dashboard = () => {
 
         {/* CHARTS */}
 
-        {['admin', 'developers'].includes(role) && (
+        {['admin', 'developers', 'telesale', 'receptionist'].includes(role) && (
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
             <div className="space-y-6">
               <ChartCard
@@ -349,7 +349,7 @@ const Dashboard = () => {
 
         {/* RECENT PATIENTS */}
 
-        {['admin', 'developers', 'telesale'].includes(role) && (
+        {['admin', 'developers', 'telesale', 'receptionist'].includes(role) && (
           <section className="card-portal">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
