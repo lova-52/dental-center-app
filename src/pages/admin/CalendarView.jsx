@@ -165,7 +165,7 @@ const CalendarView = () => {
           <button
             type="button"
             onClick={handleAddNew}
-            className="btn-primary inline-flex items-center gap-2 bg-slate-800 px-4"
+            className="btn-primary inline-flex items-center gap-2 px-4"
           >
             <Plus className="h-4 w-4" />
             Tạo lịch hẹn
