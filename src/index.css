@@ -86,7 +86,14 @@
   @apply bg-slate-100 text-slate-900;
 }
 .calendar-system .react-calendar__tile--now {
-  @apply bg-slate-100 font-semibold text-slate-800 ring-1 ring-slate-300;
+  background: #025899 !important;
+  color: white !important;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.calendar-system .react-calendar__tile--now:hover {
+  background: #01497d !important;
 }
 .calendar-system .react-calendar__tile--active {
   @apply bg-slate-800 text-white hover:bg-slate-700 hover:text-white;

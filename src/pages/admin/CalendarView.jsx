@@ -150,7 +150,7 @@ const CalendarView = () => {
         {/* Header */}
         <div className="page-header">
           <div className="page-header-main">
-            <div className="page-header-icon bg-slate-800 text-white shadow-lg">
+            <div className="page-header-icon bg-blue-100 text-[#025899] shadow-lg">
               <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div>
