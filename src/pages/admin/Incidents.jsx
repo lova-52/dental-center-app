@@ -1,3 +1,4 @@
+//path: src/pages/admin/Incidents.jsx
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
@@ -40,7 +41,7 @@ const Treatments = () => {
       .from('treatments')
       .select(`
         *,
-        services ( name, price )
+        services ( name )
       `)
       .eq('customer_id', patientId)
       .order('treatment_date', { ascending: false });
@@ -102,9 +103,6 @@ const Treatments = () => {
 
     setIsSubmitting(true);
 
-    const selectedService = services.find(
-      s => s.id === Number(formData.service_id)
-    );
 
     try {
       if (editingId) {
@@ -114,7 +112,6 @@ const Treatments = () => {
             service_id: Number(formData.service_id),
             description: formData.description,
             doctor_name: formData.doctor_name,
-            total_amount: selectedService?.price || 0,
             treatment_date: formData.appointment_time,
           })
           .eq('id', editingId);
@@ -144,7 +141,6 @@ const Treatments = () => {
             service_id: Number(formData.service_id),
             description: formData.description,
             doctor_name: formData.doctor_name,
-            total_amount: selectedService?.price || 0,
             treatment_date: formData.appointment_time
           }]);
       }
@@ -231,11 +227,6 @@ const Treatments = () => {
                         <p className="mt-2 text-sm text-slate-600">{t.description}</p>
                       )}
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-primary">
-                        {Number(t.total_amount).toLocaleString('vi-VN')} ₫
-                      </p>
-                    </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
@@ -309,7 +300,7 @@ const Treatments = () => {
                       <option value="">Chọn dịch vụ</option>
                       {services.map(s => (
                         <option key={s.id} value={s.id}>
-                          {s.name} - {Number(s.price).toLocaleString('vi-VN')} VNĐ
+                          {s.name}
                         </option>
                       ))}
                     </select>
