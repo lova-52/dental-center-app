@@ -8,16 +8,14 @@ import Patients from './pages/admin/Patients';
 import Incidents from './pages/admin/Incidents';
 import CalendarView from './pages/admin/CalendarView';
 import InventoryRouter from './pages/admin/inventory/InventoryRouter';
+import InvoicePage from './pages/admin/invoice/InvoicePage';
 
 const AppRouter = () => {
   return (
     <BrowserRouter>
       <Routes>
-
-        {/* Login */}
         <Route path="/login" element={<Login />} />
 
-        {/* Dashboard = homepage */}
         <Route
           path="/"
           element={
@@ -46,6 +44,15 @@ const AppRouter = () => {
         />
 
         <Route
+          path="/patient/:patientId/invoices"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'developers', 'telesale', 'receptionist']}>
+              <InvoicePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/calendar"
           element={
             <ProtectedRoute allowedRoles={['admin', 'developers', 'telesale', 'receptionist']}>
@@ -62,7 +69,6 @@ const AppRouter = () => {
             </ProtectedRoute>
           }
         />
-
       </Routes>
     </BrowserRouter>
   );
