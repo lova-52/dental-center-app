@@ -1235,14 +1235,27 @@ const InvoicePage = () => {
                     })}
 
                     <tr className="receipt-total-row">
-                      <td className="receipt-total-label">T.Cộng</td>
-                      <td className="text-center">
-                        {printInvoiceData.items.reduce(
-                          (sum, item) => sum + Number(item.quantity || 0),
-                          0
-                        )}
+                      <td colSpan="3" className="receipt-total-label">
+                        Tạm tính
                       </td>
-                      <td />
+                      <td className="text-right">
+                        {money(printInvoiceData.totals.subtotal)}
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td colSpan="3" className="receipt-total-label">
+                        VAT {printInvoiceData.vat_percent || 10}%
+                      </td>
+                      <td className="text-right">
+                        {money(printInvoiceData.totals.vatAmount)}
+                      </td>
+                    </tr>
+
+                    <tr className="receipt-grand-total">
+                      <td colSpan="3" className="receipt-total-label">
+                        TỔNG CỘNG
+                      </td>
                       <td className="text-right">
                         {money(printInvoiceData.totals.totalAmount)}
                       </td>
@@ -1453,6 +1466,17 @@ const InvoicePage = () => {
             font-size: 11px;
             text-align: center;
             font-weight: 700;
+          }
+
+          .receipt-grand-total td{
+            border-top:1px solid #000;
+            padding-top:4px;
+            font-weight:700;
+            font-size:11px;
+          }
+
+          .receipt-total-label{
+            text-align:left;
           }
 
           @media print {
