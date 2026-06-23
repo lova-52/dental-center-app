@@ -1,3 +1,4 @@
+//path: src/pages/admin/Patients.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
@@ -281,6 +282,8 @@ const Customers = () => {
     statusFromQuery && statusFromQuery !== 'all'
       ? normalizeStatus(statusFromQuery)
       : '';
+
+  const activeStatusFilter = statusFilter || 'all';
 
   const generateId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -648,6 +651,12 @@ const Customers = () => {
     navigate(`/patients?status=${value}`);
   };
 
+  const handleStatCardClick = (value) => {
+    handleFilterStatus(value);
+    setCurrentPage(1);
+    setOpenActionId(null);
+  };
+
   const stats = useMemo(() => {
     const counts = {
       total: customers.length,
@@ -669,20 +678,28 @@ const Customers = () => {
     return counts;
   }, [customers]);
 
-  const StatCard = ({ icon: Icon, label, value, tone }) => (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+  const StatCard = ({ icon: Icon, label, value, tone, active, onClick }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group rounded-2xl border bg-white p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-[1px] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+        active
+          ? 'border-primary/40 ring-2 ring-primary/20 bg-primary/5'
+          : 'border-gray-200'
+      }`}
+    >
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+        <div className="min-w-0">
+          <p className={`text-xs font-medium uppercase tracking-wide ${active ? 'text-primary' : 'text-gray-500'}`}>
             {label}
           </p>
           <p className="mt-2 text-2xl font-semibold text-gray-900">{value}</p>
         </div>
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${tone}`}>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl transition ${tone} ${active ? 'scale-105 shadow-sm' : ''}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
-    </div>
+    </button>
   );
 
   return (
@@ -718,10 +735,38 @@ const Customers = () => {
 
         {/* STATS */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={Users} label="Tổng bệnh nhân" value={stats.total} tone="bg-slate-100 text-slate-700" />
-          <StatCard icon={BadgeInfo} label="Khách tiềm năng" value={stats.lead} tone="bg-sky-100 text-sky-700" />
-          <StatCard icon={UserRound} label="Đang điều trị" value={stats.inCare} tone="bg-violet-100 text-violet-700" />
-          <StatCard icon={Sparkles} label="Đã hoàn thành" value={stats.done} tone="bg-emerald-100 text-emerald-700" />
+          <StatCard
+            icon={Users}
+            label="Tổng bệnh nhân"
+            value={stats.total}
+            tone="bg-slate-100 text-slate-700"
+            active={activeStatusFilter === 'all'}
+            onClick={() => handleStatCardClick('all')}
+          />
+          <StatCard
+            icon={BadgeInfo}
+            label="Khách tiềm năng"
+            value={stats.lead}
+            tone="bg-sky-100 text-sky-700"
+            active={activeStatusFilter === 'lead'}
+            onClick={() => handleStatCardClick('lead')}
+          />
+          <StatCard
+            icon={UserRound}
+            label="Đang điều trị"
+            value={stats.inCare}
+            tone="bg-violet-100 text-violet-700"
+            active={activeStatusFilter === 'in care'}
+            onClick={() => handleStatCardClick('in care')}
+          />
+          <StatCard
+            icon={Sparkles}
+            label="Đã hoàn thành"
+            value={stats.done}
+            tone="bg-emerald-100 text-emerald-700"
+            active={activeStatusFilter === 'done'}
+            onClick={() => handleStatCardClick('done')}
+          />
         </div>
 
         {/* TABLE */}

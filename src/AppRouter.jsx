@@ -5,7 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/admin/Dashboard';
 import Patients from './pages/admin/Patients';
-import Incidents from './pages/admin/Incidents';
+import Incidents from './pages/admin/Treatments';
 import CalendarView from './pages/admin/CalendarView';
 import InventoryRouter from './pages/admin/inventory/InventoryRouter';
 import InvoicePage from './pages/admin/invoice/InvoicePage';

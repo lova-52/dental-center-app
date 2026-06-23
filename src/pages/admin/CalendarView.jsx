@@ -12,6 +12,8 @@ import {
   User,
   FileText,
   X,
+  Phone,
+  StickyNote,
 } from 'lucide-react';
 
 const STATUS_CONFIG = {
@@ -41,14 +43,16 @@ const CalendarView = () => {
   }, []);
 
   const fetchCustomers = async () => {
-    const { data } = await supabase.from('customers').select('id, full_name');
+    const { data } = await supabase
+      .from('customers')
+      .select('id, full_name, phone, note');
     setCustomers(data || []);
   };
 
   const fetchAppointments = async () => {
     const { data } = await supabase
       .from('appointments')
-      .select('*, customers(full_name)')
+      .select('*, customers(full_name, phone, note)')
       .order('appointment_time', { ascending: true });
     setAppointments(data || []);
   };
@@ -144,6 +148,15 @@ const CalendarView = () => {
     return null;
   };
 
+  const getCustomerInfo = (appt) => {
+    const c = appt.customers || {};
+    return {
+      full_name: c.full_name || '—',
+      phone: c.phone || '',
+      note: c.note || '',
+    };
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6 sm:space-y-8">
@@ -174,7 +187,7 @@ const CalendarView = () => {
 
         {/* Main: Calendar + Day agenda */}
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-          {/* Calendar panel - system style */}
+          {/* Calendar panel */}
           <div className="calendar-system overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
             <div className="border-b border-slate-200/80 bg-slate-50 px-4 py-3">
               <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
@@ -209,6 +222,7 @@ const CalendarView = () => {
                 {selectedAppointments.length} lịch hẹn
               </p>
             </div>
+
             <div className="flex-1 overflow-y-auto p-4">
               {selectedAppointments.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -229,6 +243,8 @@ const CalendarView = () => {
                 <ul className="space-y-3">
                   {selectedAppointments.map((appt) => {
                     const status = STATUS_CONFIG[appt.status] || STATUS_CONFIG.scheduled;
+                    const customer = getCustomerInfo(appt);
+
                     return (
                       <li
                         key={appt.id}
@@ -236,7 +252,7 @@ const CalendarView = () => {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span
                                 className="inline-flex items-center gap-1 font-mono text-xs font-medium text-slate-600 tabular-nums"
                                 aria-label="Thời gian"
@@ -250,17 +266,34 @@ const CalendarView = () => {
                                 {status.label}
                               </span>
                             </div>
+
                             <p className="mt-1.5 flex items-center gap-1.5 font-medium text-slate-800">
                               <User className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                              {appt.customers?.full_name ?? '—'}
+                              <span className="truncate">{customer.full_name}</span>
                             </p>
+
+                            {customer.phone && (
+                              <p className="mt-1 flex items-start gap-1.5 text-xs text-slate-600">
+                                <Phone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                <span className="break-all">{customer.phone}</span>
+                              </p>
+                            )}
+
+                            {customer.note && (
+                              <p className="mt-1 flex items-start gap-1.5 text-xs text-slate-600">
+                                <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                <span className="line-clamp-2 break-words">{customer.note}</span>
+                              </p>
+                            )}
+
                             {appt.reason && (
                               <p className="mt-1 flex items-start gap-1.5 text-xs text-slate-600">
                                 <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                                <span className="line-clamp-2">{appt.reason}</span>
+                                <span className="line-clamp-2 break-words">{appt.reason}</span>
                               </p>
                             )}
                           </div>
+
                           <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                             <button
                               type="button"
@@ -334,6 +367,7 @@ const CalendarView = () => {
                     {customers.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.full_name}
+                        {c.phone ? ` - ${c.phone}` : ''}
                       </option>
                     ))}
                   </select>
@@ -391,11 +425,7 @@ const CalendarView = () => {
                     Hủy
                   </button>
                   <button type="submit" disabled={isSubmitting} className="btn-primary">
-                    {isSubmitting
-                      ? 'Đang lưu...'
-                      : editingId
-                        ? 'Cập nhật'
-                        : 'Tạo lịch hẹn'}
+                    {isSubmitting ? 'Đang lưu...' : editingId ? 'Cập nhật' : 'Tạo lịch hẹn'}
                   </button>
                 </div>
               </form>
