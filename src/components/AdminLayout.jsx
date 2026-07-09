@@ -1,9 +1,9 @@
-//path: src/components/AdminLayout.jsx
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Boxes, Calendar, LayoutDashboard, LogOut, Menu, Package, Stethoscope, Truck, Users, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import AIChatWidget from './AIChatWidget';
 
 const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -173,6 +173,8 @@ const AdminLayout = ({ children }) => {
           <div className="page-shell">{children}</div>
         </main>
       </div>
+
+      <AIChatWidget />
     </div>
   );
 };

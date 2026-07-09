@@ -1,134 +1,197 @@
-// path: src/pages/Login.jsx
-import { useState } from "react";
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
-import { Eye, EyeOff, Mail, Lock, Stethoscope } from "lucide-react";
+ // File: src/pages/Login.jsx
 
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Lock, Mail, Stethoscope } from 'lucide-react';
+
+import { useAuth } from '../context/AuthContext';
+import { getDeviceLabel, getOrCreateDeviceId } from '../lib/device';
+import { supabase } from '../lib/supabase';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { user, loading: authLoading, refreshAuth } = useAuth();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
+    if (!authLoading && user) {
+      navigate('/', { replace: true });
+    }
+  }, [authLoading, navigate, user]);
 
-      if (data.session) {
-        navigate("/");
-      }
-    };
-
-    checkSession();
-  }, [navigate]);
-
-  
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      alert(error.message);
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+
+      const liveUser = userData?.user || data?.user;
+
+      if (userError || !liveUser) {
+        await supabase.auth.signOut({ scope: 'local' });
+        alert('Không thể xác thực người dùng.');
+        return;
+      }
+
+      const deviceId = getOrCreateDeviceId();
+      const deviceLabel = getDeviceLabel();
+      const now = new Date().toISOString();
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', liveUser.id)
+        .single();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut({ scope: 'local' });
+        alert('Không tìm thấy hồ sơ.');
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          active_device_id: deviceId,
+          active_device_name: deviceLabel,
+          last_login_at: now,
+          last_seen_at: now,
+        })
+        .eq('id', liveUser.id);
+
+      if (updateError) {
+        await supabase.auth.signOut({ scope: 'local' });
+        alert(
+          updateError.message ||
+            'Không thể cập nhật thiết bị đăng nhập.'
+        );
+        return;
+      }
+
+      const { error: othersSignOutError } =
+        await supabase.auth.signOut({
+          scope: 'others',
+        });
+
+      if (othersSignOutError) {
+        console.error(
+          'Sign out other sessions error:',
+          othersSignOutError
+        );
+      }
+
+      await refreshAuth();
+
+      navigate('/', { replace: true });
+    } catch (err) {
+      console.error(err);
+      alert('Có lỗi xảy ra khi đăng nhập.');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const userId = data.user.id;
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-
-    if (!profile) {
-      alert("Không tìm thấy hồ sơ.");
-      setLoading(false);
-      return;
-    }
-
-    navigate("/");
   };
 
   return (
-    <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-slate-100 via-sky-50 to-primary/5 px-4 py-8">
+    <div className="flex min-h-screen min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-100 via-sky-50 to-primary/5 px-4 py-8">
       <div className="w-full max-w-sm">
-
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary text-white shadow-lg shadow-primary/25 mb-4">
+        <div className="mb-8 text-center">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/25">
             <Stethoscope className="h-8 w-8" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Phương Sen Dental</h1>
-          <p className="text-sm text-slate-500 mt-1.5">Đăng nhập vào hệ thống quản lý</p>
+
+          <h1 className="text-2xl font-bold tracking-tight text-slate-800">
+            Phương Sen Dental
+          </h1>
+
+          <p className="mt-1.5 text-sm text-slate-500">
+            Đăng nhập vào hệ thống quản lý
+          </p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-xl shadow-slate-200/60 border border-slate-100">
-          <h2 className="text-base font-semibold text-slate-700 mb-1">Chào mừng trở lại</h2>
-          <p className="text-xs text-slate-400 mb-6">Nhập thông tin để tiếp tục</p>
+        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-xl shadow-slate-200/60">
+          <h2 className="mb-1 text-base font-semibold text-slate-700">
+            Chào mừng trở lại
+          </h2>
+
+          <p className="mb-6 text-xs text-slate-400">
+            Nhập thông tin để tiếp tục
+          </p>
 
           <form onSubmit={handleLogin} className="space-y-4">
-
-            {/* EMAIL */}
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
+              <Mail
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
               <input
                 type="email"
                 placeholder="Địa chỉ email"
                 required
-                className="input-portal w-full pl-9 pr-3 py-3"
+                className="input-portal w-full py-3 pl-9 pr-3"
                 value={email}
-                onChange={(e)=>setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
-            {/* PASSWORD */}
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
+              <Lock
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
               <input
-                type={showPass ? "text":"password"}
+                type={showPass ? 'text' : 'password'}
                 placeholder="Mật khẩu"
                 required
-                className="input-portal w-full pl-9 pr-10 py-3"
+                className="input-portal w-full py-3 pl-9 pr-10"
                 value={password}
-                onChange={(e)=>setPassword(e.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
               />
 
-              <div
-                onClick={()=>setShowPass(!showPass)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 hover:text-slate-600 transition-colors"
+              <button
+                type="button"
+                onClick={() => setShowPass(!showPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
               >
-                {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
-              </div>
+                {showPass ? (
+                  <EyeOff size={16} />
+                ) : (
+                  <Eye size={16} />
+                )}
+              </button>
             </div>
 
-            {/* BUTTON */}
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full mt-2"
+              className="btn-primary mt-2 w-full"
             >
-              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+              {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
-
           </form>
 
-          {/* FOOTER */}
-          <div className="text-center text-[11px] text-slate-400 mt-6">
+          <div className="mt-6 text-center text-[11px] text-slate-400">
             © 2025 Phương Sen Dental · Hệ thống quản lý phòng khám nha khoa
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 };

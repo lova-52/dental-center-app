@@ -29,6 +29,7 @@ const CalendarView = () => {
   const [editingId, setEditingId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedAppointment, setExpandedAppointment] = useState(null);
 
   const [formData, setFormData] = useState({
     customer_id: '',
@@ -132,8 +133,23 @@ const CalendarView = () => {
   );
 
   const formatTime = (dateStr) => {
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      const d = new Date(dateStr);
+      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const toggleAppointment = (id) => {
+    setExpandedAppointment((prev) => (prev === id ? null : id));
+  };
+
+  const formatDateTime = (dateStr) => {
+    return new Date(dateStr).toLocaleString("vi-VN", {
+      weekday: "long",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const tileClassName = ({ date, view }) => {
@@ -248,8 +264,13 @@ const CalendarView = () => {
                     return (
                       <li
                         key={appt.id}
-                        className="group rounded-lg border border-slate-100 bg-slate-50/50 p-3 transition-all hover:border-slate-200 hover:bg-slate-50"
-                      >
+                        onClick={() => toggleAppointment(appt.id)}
+                        className={`group cursor-pointer rounded-lg border bg-slate-50/50 p-3 transition-all duration-300 hover:border-slate-200 hover:bg-slate-50 ${
+                          expandedAppointment === appt.id
+                            ? "border-blue-300 shadow-md"
+                            : "border-slate-100"
+                        }`}
+                    >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
@@ -286,11 +307,73 @@ const CalendarView = () => {
                               </p>
                             )}
 
-                            {appt.reason && (
-                              <p className="mt-1 flex items-start gap-1.5 text-xs text-slate-600">
-                                <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                                <span className="line-clamp-2 break-words">{appt.reason}</span>
-                              </p>
+                            {expandedAppointment === appt.id && (
+                              <div className="mt-4 border-t border-slate-200 pt-4 space-y-3">
+
+                                <div className="grid gap-3 text-sm sm:grid-cols-2">
+
+                                  <div>
+                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                                      Bệnh nhân
+                                    </p>
+                                    <p className="mt-1 text-slate-800 font-medium">
+                                      {customer.full_name}
+                                    </p>
+                                  </div>
+
+                                  <div>
+                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                                      Số điện thoại
+                                    </p>
+                                    <p className="mt-1 text-slate-700">
+                                      {customer.phone || "--"}
+                                    </p>
+                                  </div>
+
+                                  <div>
+                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                                      Thời gian
+                                    </p>
+                                    <p className="mt-1 text-slate-700">
+                                      {formatDateTime(appt.appointment_time)}
+                                    </p>
+                                  </div>
+
+                                  <div>
+                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                                      Trạng thái
+                                    </p>
+
+                                    <span
+                                      className={`mt-1 inline-flex rounded border px-2 py-1 text-xs font-medium ${status.class}`}
+                                    >
+                                      {status.label}
+                                    </span>
+                                  </div>
+
+                                </div>
+
+                                <div>
+                                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                                    Lý do lịch hẹn
+                                  </p>
+
+                                  <div className="mt-1 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                                    {appt.reason || "Không có"}
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                                    Ghi chú khách hàng
+                                  </p>
+
+                                  <div className="mt-1 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700 whitespace-pre-wrap break-words">
+                                    {customer.note || "Không có"}
+                                  </div>
+                                </div>
+
+                              </div>
                             )}
                           </div>
 
