@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import AdminLayout from '../../components/AdminLayout';
@@ -10,10 +10,11 @@ import {
   Pencil,
   Trash2,
   User,
-  FileText,
   X,
   Phone,
   StickyNote,
+  Search,
+  Check,
 } from 'lucide-react';
 
 const STATUS_CONFIG = {
@@ -31,6 +32,9 @@ const CalendarView = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedAppointment, setExpandedAppointment] = useState(null);
 
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+
   const [formData, setFormData] = useState({
     customer_id: '',
     appointment_time: '',
@@ -46,7 +50,9 @@ const CalendarView = () => {
   const fetchCustomers = async () => {
     const { data } = await supabase
       .from('customers')
-      .select('id, full_name, phone, note');
+      .select('id, full_name, phone, note')
+      .order('full_name', { ascending: true });
+
     setCustomers(data || []);
   };
 
@@ -55,12 +61,14 @@ const CalendarView = () => {
       .from('appointments')
       .select('*, customers(full_name, phone, note)')
       .order('appointment_time', { ascending: true });
+
     setAppointments(data || []);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+
     try {
       const payload = {
         customer_id: formData.customer_id,
@@ -68,13 +76,17 @@ const CalendarView = () => {
         status: formData.status || 'scheduled',
         reason: formData.reason || null,
       };
+
       if (editingId) {
         await supabase.from('appointments').update(payload).eq('id', editingId);
       } else {
         await supabase.from('appointments').insert([payload]);
       }
+
       setEditingId(null);
       setFormData({ customer_id: '', appointment_time: '', status: '', reason: '' });
+      setCustomerSearch('');
+      setShowCustomerPicker(false);
       await fetchAppointments();
       setIsModalOpen(false);
     } catch (err) {
@@ -87,12 +99,19 @@ const CalendarView = () => {
 
   const handleEdit = (appt) => {
     setEditingId(appt.id);
+    const customerName = appt.customers?.full_name || '';
+    const customerPhone = appt.customers?.phone || '';
+    setCustomerSearch(
+      customerPhone ? `${customerName} · ${customerPhone}` : customerName
+    );
+
     setFormData({
       customer_id: appt.customer_id,
       appointment_time: appt.appointment_time?.slice(0, 16) || '',
       status: appt.status || 'scheduled',
       reason: appt.reason || '',
     });
+    setShowCustomerPicker(false);
     setIsModalOpen(true);
   };
 
@@ -101,12 +120,15 @@ const CalendarView = () => {
     const pad = (n) => String(n).padStart(2, '0');
     const d = selectedDate;
     const today = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T09:00`;
+
     setFormData({
       customer_id: '',
       appointment_time: today,
       status: 'scheduled',
       reason: '',
     });
+    setCustomerSearch('');
+    setShowCustomerPicker(false);
     setIsModalOpen(true);
   };
 
@@ -114,6 +136,8 @@ const CalendarView = () => {
     setIsModalOpen(false);
     setEditingId(null);
     setFormData({ customer_id: '', appointment_time: '', status: '', reason: '' });
+    setCustomerSearch('');
+    setShowCustomerPicker(false);
   };
 
   const handleDelete = async (id) => {
@@ -133,22 +157,22 @@ const CalendarView = () => {
   );
 
   const formatTime = (dateStr) => {
-      const d = new Date(dateStr);
-      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    };
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  };
 
-    const toggleAppointment = (id) => {
+  const toggleAppointment = (id) => {
     setExpandedAppointment((prev) => (prev === id ? null : id));
   };
 
   const formatDateTime = (dateStr) => {
-    return new Date(dateStr).toLocaleString("vi-VN", {
-      weekday: "long",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+    return new Date(dateStr).toLocaleString('vi-VN', {
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -173,6 +197,55 @@ const CalendarView = () => {
     };
   };
 
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers.slice(0, 20);
+
+    return customers.filter((c) => {
+      const name = (c.full_name || '').toLowerCase();
+      const phone = (c.phone || '').toLowerCase();
+      const note = (c.note || '').toLowerCase();
+      return name.includes(q) || phone.includes(q) || note.includes(q);
+    }).slice(0, 20);
+  }, [customers, customerSearch]);
+
+  const selectedCustomer = useMemo(() => {
+    return customers.find((c) => c.id === formData.customer_id) || null;
+  }, [customers, formData.customer_id]);
+
+  const handleCustomerInputChange = (value) => {
+    setCustomerSearch(value);
+    setFormData((prev) => ({
+      ...prev,
+      customer_id: '',
+    }));
+    setShowCustomerPicker(true);
+  };
+
+  const handleSelectCustomer = (customer) => {
+    setFormData((prev) => ({
+      ...prev,
+      customer_id: customer.id,
+    }));
+
+    setCustomerSearch(
+      customer.phone
+        ? `${customer.full_name} · ${customer.phone}`
+        : customer.full_name
+    );
+
+    setShowCustomerPicker(false);
+  };
+
+  const clearCustomerSelection = () => {
+    setFormData((prev) => ({
+      ...prev,
+      customer_id: '',
+    }));
+    setCustomerSearch('');
+    setShowCustomerPicker(true);
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6 sm:space-y-8">
@@ -183,9 +256,7 @@ const CalendarView = () => {
               <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div>
-              <h2 className="page-header-title text-slate-800">
-                Quản lý lịch hẹn
-              </h2>
+              <h2 className="page-header-title text-slate-800">Quản lý lịch hẹn</h2>
               <p className="page-header-subtitle">
                 Lịch hẹn bệnh nhân và thời gian điều trị
               </p>
@@ -267,10 +338,10 @@ const CalendarView = () => {
                         onClick={() => toggleAppointment(appt.id)}
                         className={`group cursor-pointer rounded-lg border bg-slate-50/50 p-3 transition-all duration-300 hover:border-slate-200 hover:bg-slate-50 ${
                           expandedAppointment === appt.id
-                            ? "border-blue-300 shadow-md"
-                            : "border-slate-100"
+                            ? 'border-blue-300 shadow-md'
+                            : 'border-slate-100'
                         }`}
-                    >
+                      >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
@@ -308,15 +379,13 @@ const CalendarView = () => {
                             )}
 
                             {expandedAppointment === appt.id && (
-                              <div className="mt-4 border-t border-slate-200 pt-4 space-y-3">
-
+                              <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
                                 <div className="grid gap-3 text-sm sm:grid-cols-2">
-
                                   <div>
                                     <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                                       Bệnh nhân
                                     </p>
-                                    <p className="mt-1 text-slate-800 font-medium">
+                                    <p className="mt-1 font-medium text-slate-800">
                                       {customer.full_name}
                                     </p>
                                   </div>
@@ -326,7 +395,7 @@ const CalendarView = () => {
                                       Số điện thoại
                                     </p>
                                     <p className="mt-1 text-slate-700">
-                                      {customer.phone || "--"}
+                                      {customer.phone || '--'}
                                     </p>
                                   </div>
 
@@ -343,23 +412,20 @@ const CalendarView = () => {
                                     <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                                       Trạng thái
                                     </p>
-
                                     <span
                                       className={`mt-1 inline-flex rounded border px-2 py-1 text-xs font-medium ${status.class}`}
                                     >
                                       {status.label}
                                     </span>
                                   </div>
-
                                 </div>
 
                                 <div>
                                   <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                                     Lý do lịch hẹn
                                   </p>
-
                                   <div className="mt-1 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">
-                                    {appt.reason || "Không có"}
+                                    {appt.reason || 'Không có'}
                                   </div>
                                 </div>
 
@@ -367,12 +433,10 @@ const CalendarView = () => {
                                   <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                                     Ghi chú khách hàng
                                   </p>
-
                                   <div className="mt-1 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700 whitespace-pre-wrap break-words">
-                                    {customer.note || "Không có"}
+                                    {customer.note || 'Không có'}
                                   </div>
                                 </div>
-
                               </div>
                             )}
                           </div>
@@ -380,7 +444,10 @@ const CalendarView = () => {
                           <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                             <button
                               type="button"
-                              onClick={() => handleEdit(appt)}
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                handleEdit(appt);
+                              }}
                               className="rounded-lg p-2 text-slate-500 hover:bg-slate-200/80 hover:text-slate-700"
                               title="Sửa"
                             >
@@ -388,7 +455,10 @@ const CalendarView = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDelete(appt.id)}
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                handleDelete(appt.id);
+                              }}
                               className="rounded-lg p-2 text-slate-500 hover:bg-red-100 hover:text-red-600"
                               title="Xoá"
                             >
@@ -413,7 +483,7 @@ const CalendarView = () => {
             aria-modal="true"
             aria-labelledby="modal-title"
           >
-            <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xl">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-5 shadow-2xl sm:p-6">
               <div className="mb-5 flex items-start justify-between gap-3">
                 <div>
                   <h3 id="modal-title" className="text-lg font-semibold text-slate-900">
@@ -434,26 +504,109 @@ const CalendarView = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
+                <div className="relative">
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Bệnh nhân
                   </label>
-                  <select
-                    required
-                    className="input-portal"
-                    value={formData.customer_id}
-                    onChange={(e) =>
-                      setFormData({ ...formData, customer_id: e.target.value })
-                    }
-                  >
-                    <option value="">Chọn bệnh nhân</option>
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.full_name}
-                        {c.phone ? ` - ${c.phone}` : ''}
-                      </option>
-                    ))}
-                  </select>
+
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      className="input-portal w-full py-3 pl-9 pr-10"
+                      placeholder="Tìm theo tên, số điện thoại hoặc ghi chú..."
+                      value={customerSearch}
+                      onChange={(e) => handleCustomerInputChange(e.target.value)}
+                      onFocus={() => setShowCustomerPicker(true)}
+                      autoComplete="off"
+                    />
+
+                    {formData.customer_id && (
+                      <button
+                        type="button"
+                        onClick={clearCustomerSelection}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        aria-label="Xóa bệnh nhân đã chọn"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {showCustomerPicker && (
+                    <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                      <div className="max-h-64 overflow-y-auto">
+                        {filteredCustomers.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-slate-500">
+                            Không tìm thấy bệnh nhân phù hợp.
+                          </div>
+                        ) : (
+                          filteredCustomers.map((customer) => {
+                            const isSelected = customer.id === formData.customer_id;
+
+                            return (
+                              <button
+                                key={customer.id}
+                                type="button"
+                                onClick={() => handleSelectCustomer(customer)}
+                                className={`flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-slate-50 ${
+                                  isSelected ? 'bg-sky-50' : 'bg-white'
+                                }`}
+                              >
+                                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                                  <User className="h-4 w-4" />
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="truncate text-sm font-semibold text-slate-800">
+                                      {customer.full_name || '—'}
+                                    </p>
+                                    {isSelected && (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700">
+                                        <Check className="h-3 w-3" />
+                                        Đã chọn
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {customer.phone && (
+                                    <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                                      <Phone className="h-3.5 w-3.5" />
+                                      <span className="truncate">{customer.phone}</span>
+                                    </p>
+                                  )}
+
+                                  {customer.note && (
+                                    <p className="mt-1 flex items-start gap-1 text-xs text-slate-500">
+                                      <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                      <span className="line-clamp-2 break-words">{customer.note}</span>
+                                    </p>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedCustomer && (
+                    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      <div className="font-medium text-slate-700">
+                        {selectedCustomer.full_name}
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-1">
+                        {selectedCustomer.phone && (
+                          <span>📞 {selectedCustomer.phone}</span>
+                        )}
+                        {selectedCustomer.note && (
+                          <span className="line-clamp-1">📝 {selectedCustomer.note}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -499,7 +652,7 @@ const CalendarView = () => {
                   </select>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-2">
+                <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
                   <button
                     type="button"
                     onClick={handleCloseModal}
