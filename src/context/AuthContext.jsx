@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
+
 import { supabase } from '../lib/supabase';
 import { getDeviceLabel, getOrCreateDeviceId } from '../lib/device';
 import { setAuthNotice } from '../lib/authNotice';
@@ -34,7 +35,10 @@ export const AuthProvider = ({ children }) => {
     async (reason = 'Phiên đăng nhập đã bị kết thúc.') => {
       try {
         setAuthNotice(reason);
-        await supabase.auth.signOut({ scope: 'local' });
+
+        await supabase.auth.signOut({
+          scope: 'local',
+        });
       } catch (error) {
         console.error('Local sign out error:', error);
       } finally {
@@ -47,7 +51,11 @@ export const AuthProvider = ({ children }) => {
   const syncCurrentSession = useCallback(
     async ({ silent = true } = {}) => {
       if (syncInProgressRef.current) {
-        return { user: null, role: null, ok: false };
+        return {
+          user: null,
+          role: null,
+          ok: false,
+        };
       }
 
       syncInProgressRef.current = true;
@@ -61,25 +69,45 @@ export const AuthProvider = ({ children }) => {
         const deviceLabel = getDeviceLabel();
         const now = new Date().toISOString();
 
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.getSession();
+        // Get current session
+        const {
+          data: sessionData,
+          error: sessionError,
+        } = await supabase.auth.getSession();
 
         if (sessionError || !sessionData?.session) {
           resetAuthState();
-          return { user: null, role: null, ok: false };
+
+          return {
+            user: null,
+            role: null,
+            ok: false,
+          };
         }
 
-        const { data: userData, error: userError } =
-          await supabase.auth.getUser();
+        // Get authenticated user
+        const {
+          data: userData,
+          error: userError,
+        } = await supabase.auth.getUser();
 
         const liveUser = userData?.user;
 
         if (userError || !liveUser) {
           await forceLocalLogout('Không thể xác thực phiên đăng nhập.');
-          return { user: null, role: null, ok: false };
+
+          return {
+            user: null,
+            role: null,
+            ok: false,
+          };
         }
 
-        const { data: profile, error: profileError } = await supabase
+        // Get user profile
+        const {
+          data: profile,
+          error: profileError,
+        } = await supabase
           .from('profiles')
           .select('role, active_device_id')
           .eq('id', liveUser.id)
@@ -87,9 +115,15 @@ export const AuthProvider = ({ children }) => {
 
         if (profileError || !profile) {
           await forceLocalLogout('Không tìm thấy hồ sơ người dùng.');
-          return { user: null, role: null, ok: false };
+
+          return {
+            user: null,
+            role: null,
+            ok: false,
+          };
         }
 
+        // Check whether this account is active on another device
         if (
           profile.active_device_id &&
           profile.active_device_id !== deviceId
@@ -98,16 +132,31 @@ export const AuthProvider = ({ children }) => {
             'Tài khoản này vừa được đăng nhập ở thiết bị khác. Phiên hiện tại đã bị đăng xuất.'
           );
 
-          return { user: null, role: null, ok: false };
+          return {
+            user: null,
+            role: null,
+            ok: false,
+          };
         }
 
-        const { error: updateError } = await supabase
+        // Update device/session information
+        const {
+          error: updateError,
+        } = await supabase
           .from('profiles')
           .update({
-            active_device_id: profile.active_device_id || deviceId,
+            active_device_id:
+              profile.active_device_id || deviceId,
+
             active_device_name: deviceLabel,
+
             last_seen_at: now,
-            ...(profile.active_device_id ? {} : { last_login_at: now }),
+
+            ...(profile.active_device_id
+              ? {}
+              : {
+                  last_login_at: now,
+                }),
           })
           .eq('id', liveUser.id);
 
@@ -116,9 +165,14 @@ export const AuthProvider = ({ children }) => {
             'Không thể đồng bộ trạng thái thiết bị đăng nhập.'
           );
 
-          return { user: null, role: null, ok: false };
+          return {
+            user: null,
+            role: null,
+            ok: false,
+          };
         }
 
+        // Update React state
         setUser(liveUser);
         setRole(profile.role || null);
 
@@ -147,45 +201,69 @@ export const AuthProvider = ({ children }) => {
   );
 
   useEffect(() => {
-    syncCurrentSession({ silent: false });
+    // Initial auth check
+    syncCurrentSession({
+      silent: false,
+    });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
+    // Listen for Supabase auth changes
+    const {
+      data: authListener,
+    } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (!session) {
           resetAuthState();
           return;
         }
 
-        syncCurrentSession({ silent: true });
+        syncCurrentSession({
+          silent: true,
+        });
       }
     );
 
+    // Check auth when window gets focus
     const onFocus = () => {
-      syncCurrentSession({ silent: true });
+      syncCurrentSession({
+        silent: true,
+      });
     };
 
+    // Check auth when tab becomes visible
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        syncCurrentSession({ silent: true });
+        syncCurrentSession({
+          silent: true,
+        });
       }
     };
 
+    // Periodic auth check
     const intervalId = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
-        syncCurrentSession({ silent: true });
+        syncCurrentSession({
+          silent: true,
+        });
       }
     }, CHECK_INTERVAL_MS);
 
     window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    document.addEventListener(
+      'visibilitychange',
+      onVisibilityChange
+    );
 
     return () => {
       authListener.subscription.unsubscribe();
+
       window.removeEventListener('focus', onFocus);
+
       document.removeEventListener(
         'visibilitychange',
         onVisibilityChange
       );
+
       window.clearInterval(intervalId);
     };
   }, [resetAuthState, syncCurrentSession]);

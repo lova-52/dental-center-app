@@ -1,3 +1,4 @@
+//path: src/components/AdminLayout.jsx
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Boxes, Calendar, LayoutDashboard, LogOut, Menu, Package, Stethoscope, Truck, Users, X } from 'lucide-react';
@@ -21,6 +22,7 @@ const AdminLayout = ({ children }) => {
     { type: 'link', path: '/', label: 'Trang chủ', icon: LayoutDashboard, end: true, roles: ['admin', 'developers', 'telesale', 'assistant', 'receptionist'] },
     { type: 'link', path: '/patients', label: 'Bệnh nhân', icon: Users, roles: ['admin', 'developers', 'telesale', 'receptionist'] },
     { type: 'link', path: '/calendar', label: 'Lịch hẹn', icon: Calendar, roles: ['admin', 'developers', 'telesale', 'receptionist'] },
+    { type: 'link', path: '/telesales', label: 'Quản lý Telesale', icon: Users, roles: ['admin', 'developers'] },
     {
       type: 'group',
       path: '/inventory',

@@ -9,69 +9,24 @@ import Incidents from './pages/admin/Treatments';
 import CalendarView from './pages/admin/CalendarView';
 import InventoryRouter from './pages/admin/inventory/InventoryRouter';
 import InvoicePage from './pages/admin/invoice/InvoicePage';
+import Telesales from './pages/admin/Telesales';
 
-const AppRouter = () => {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+const STAFF_ROLES = ['admin', 'developers', 'telesale', 'assistant', 'receptionist'];
+const PATIENT_ROLES = ['admin', 'developers', 'telesale', 'receptionist'];
 
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute allowedRoles={['admin', 'developers', 'telesale', 'assistant', 'receptionist']}>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/patients"
-          element={
-            <ProtectedRoute allowedRoles={['admin', 'developers', 'telesale', 'receptionist']}>
-              <Patients />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/patient/:patientId/incidents"
-          element={
-            <ProtectedRoute allowedRoles={['admin', 'developers', 'telesale', 'receptionist']}>
-              <Incidents />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/patient/:patientId/invoices"
-          element={
-            <ProtectedRoute allowedRoles={['admin', 'developers', 'telesale', 'receptionist']}>
-              <InvoicePage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/calendar"
-          element={
-            <ProtectedRoute allowedRoles={['admin', 'developers', 'telesale', 'receptionist']}>
-              <CalendarView />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/inventory/*"
-          element={
-            <ProtectedRoute allowedRoles={['admin', 'developers', 'assistant']}>
-              <InventoryRouter />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </BrowserRouter>
-  );
-};
+const AppRouter = () => (
+  <BrowserRouter>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<ProtectedRoute allowedRoles={STAFF_ROLES}><Dashboard /></ProtectedRoute>} />
+      <Route path="/patients" element={<ProtectedRoute allowedRoles={PATIENT_ROLES}><Patients /></ProtectedRoute>} />
+      <Route path="/patient/:patientId/incidents" element={<ProtectedRoute allowedRoles={PATIENT_ROLES}><Incidents /></ProtectedRoute>} />
+      <Route path="/patient/:patientId/invoices" element={<ProtectedRoute allowedRoles={PATIENT_ROLES}><InvoicePage /></ProtectedRoute>} />
+      <Route path="/calendar" element={<ProtectedRoute allowedRoles={PATIENT_ROLES}><CalendarView /></ProtectedRoute>} />
+      <Route path="/inventory/*" element={<ProtectedRoute allowedRoles={['admin', 'developers', 'assistant']}><InventoryRouter /></ProtectedRoute>} />
+      <Route path="/telesales" element={<ProtectedRoute allowedRoles={['admin', 'developers']}><Telesales /></ProtectedRoute>} />
+    </Routes>
+  </BrowserRouter>
+);
 
 export default AppRouter;
