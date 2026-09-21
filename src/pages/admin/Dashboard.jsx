@@ -1,11 +1,20 @@
-// src/pages/admin/Dashboard.jsx
+// File: src/pages/admin/Dashboard.jsx
 // Dashboard quản trị phòng khám
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
+
 import AdminLayout from "../../components/AdminLayout";
+
 import { supabase } from "../../lib/supabase";
+
 import EnableNotification from "../../components/EnableNotification";
+
 import { useAuth } from "../../context/AuthContext";
 
 import {
@@ -15,8 +24,7 @@ import {
   TrendingUp,
   Activity,
   ArrowRight,
-  Bell,
-  Package
+  Package,
 } from "lucide-react";
 
 import {
@@ -33,19 +41,31 @@ import {
   Legend,
 } from "recharts";
 
-const COLORS = ["#025899", "#10b981", "#f97316", "#6366f1", "#e11d48"];
+const COLORS = [
+  "#025899",
+  "#10b981",
+  "#f97316",
+  "#6366f1",
+  "#e11d48",
+];
 
 /* =========================================================
    KPI CARD
 ========================================================= */
 
-const KPIStatCard = ({ label, value, icon: Icon, description, to }) => {
+const KPIStatCard = ({
+  label,
+  value,
+  icon: Icon,
+  description,
+  to,
+}) => {
   const navigate = useNavigate();
 
   return (
     <div
       onClick={() => navigate(to)}
-      className="card-portal group relative cursor-pointer overflow-hidden transition-all hover:shadow-lg hover:-translate-y-[2px]"
+      className="card-portal group relative cursor-pointer overflow-hidden transition-all hover:-translate-y-[2px] hover:shadow-lg"
     >
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-emerald-50 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -59,9 +79,10 @@ const KPIStatCard = ({ label, value, icon: Icon, description, to }) => {
             {value}
           </p>
 
-          <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+          <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
             {description}
-            <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition" />
+
+            <ArrowRight className="h-3 w-3 opacity-0 transition group-hover:opacity-100" />
           </p>
         </div>
 
@@ -77,7 +98,12 @@ const KPIStatCard = ({ label, value, icon: Icon, description, to }) => {
    CHART CARD
 ========================================================= */
 
-const ChartCard = ({ title, subtitle, icon: Icon, children }) => (
+const ChartCard = ({
+  title,
+  subtitle,
+  icon: Icon,
+  children,
+}) => (
   <div className="card-portal flex flex-col">
     <div className="mb-4 flex items-center gap-3">
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -85,12 +111,21 @@ const ChartCard = ({ title, subtitle, icon: Icon, children }) => (
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-        {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
+        <h3 className="text-sm font-semibold text-gray-900">
+          {title}
+        </h3>
+
+        {subtitle && (
+          <p className="text-xs text-gray-500">
+            {subtitle}
+          </p>
+        )}
       </div>
     </div>
 
-    <div className="h-56 sm:h-64 w-full">{children}</div>
+    <div className="h-56 w-full sm:h-64">
+      {children}
+    </div>
   </div>
 );
 
@@ -100,211 +135,436 @@ const ChartCard = ({ title, subtitle, icon: Icon, children }) => (
 
 const Dashboard = () => {
   const navigate = useNavigate();
+
   const { role } = useAuth();
 
   const [patients, setPatients] = useState([]);
+
   const [appointments, setAppointments] = useState([]);
+
   const [treatments, setTreatments] = useState([]);
+
   const [movements, setMovements] = useState([]);
 
   const [totalPatients, setTotalPatients] = useState(0);
-  const [upcomingAppointments, setUpcomingAppointments] = useState(0);
-  const [completedTreatments, setCompletedTreatments] = useState(0);
-  const [monthlyRevenue, setMonthlyRevenue] = useState(0);
+
+  const [
+    upcomingAppointments,
+    setUpcomingAppointments,
+  ] = useState(0);
+
+  const [
+    completedTreatments,
+    setCompletedTreatments,
+  ] = useState(0);
+
+  const [
+    monthlyRevenue,
+    setMonthlyRevenue,
+  ] = useState(0);
+
+  /*
+  |--------------------------------------------------------------------------
+  | FETCH DATA
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
-    const { data: patientData } = await supabase.from("customers").select("*");
-    const { data: appointmentData } = await supabase.from("appointments").select("*");
-    const { data: treatmentData } = await supabase.from("treatments").select("*");
-    const { data: movementData } = await supabase.from("inventory_movements").select("*");
+    const {
+      data: patientData,
+    } = await supabase
+      .from("customers")
+      .select("*");
+
+    const {
+      data: appointmentData,
+    } = await supabase
+      .from("appointments")
+      .select("*");
+
+    const {
+      data: treatmentData,
+    } = await supabase
+      .from("treatments")
+      .select("*");
+
+    const {
+      data: movementData,
+    } = await supabase
+      .from("inventory_movements")
+      .select("*");
 
     setPatients(patientData || []);
+
     setAppointments(appointmentData || []);
+
     setTreatments(treatmentData || []);
+
     setMovements(movementData || []);
 
-    setTotalPatients(patientData?.length || 0);
-
-    const upcoming = appointmentData?.filter(
-      (a) => new Date(a.appointment_time) > new Date()
+    setTotalPatients(
+      patientData?.length || 0
     );
 
-    setUpcomingAppointments(upcoming?.length || 0);
+    /*
+    |--------------------------------------------------------------------------
+    | UPCOMING APPOINTMENTS
+    |--------------------------------------------------------------------------
+    */
 
-    const completed = patientData?.filter(
-      (p) => String(p.status || '').trim().toLowerCase() === 'done'
+    const upcoming =
+      appointmentData?.filter(
+        (appointment) =>
+          new Date(
+            appointment.appointment_time
+          ) > new Date() &&
+          appointment.status !== "cancelled"
+      );
+
+    setUpcomingAppointments(
+      upcoming?.length || 0
     );
 
-    setCompletedTreatments(completed?.length || 0);
+    /*
+    |--------------------------------------------------------------------------
+    | COMPLETED PATIENTS
+    |--------------------------------------------------------------------------
+    */
+
+    const completed =
+      patientData?.filter(
+        (patient) =>
+          String(
+            patient.status || ""
+          )
+            .trim()
+            .toLowerCase() === "done"
+      );
+
+    setCompletedTreatments(
+      completed?.length || 0
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | MONTHLY REVENUE
+    |--------------------------------------------------------------------------
+    */
 
     const now = new Date();
 
     const revenue =
       treatmentData
-        ?.filter((t) => {
-          const d = new Date(t.treatment_date);
+        ?.filter((treatment) => {
+          const date = new Date(
+            treatment.treatment_date
+          );
+
           return (
-            d.getMonth() === now.getMonth() &&
-            d.getFullYear() === now.getFullYear()
+            date.getMonth() ===
+              now.getMonth() &&
+            date.getFullYear() ===
+              now.getFullYear()
           );
         })
-        .reduce((sum, t) => sum + Number(t.total_amount || 0), 0) || 0;
+        .reduce(
+          (sum, treatment) =>
+            sum +
+            Number(
+              treatment.total_amount || 0
+            ),
+          0
+        ) || 0;
 
     setMonthlyRevenue(revenue);
   };
 
-  const monthlyRevenueTrend = useMemo(() => {
-    const map = new Map();
-    const now = new Date();
+  /*
+  |--------------------------------------------------------------------------
+  | MONTHLY REVENUE TREND
+  |--------------------------------------------------------------------------
+  */
 
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+  const monthlyRevenueTrend =
+    useMemo(() => {
+      const map = new Map();
 
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const now = new Date();
 
-      map.set(key, {
-        month: d.toLocaleDateString("vi-VN", { month: "short" }),
-        revenue: 0,
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(
+          now.getFullYear(),
+          now.getMonth() - i,
+          1
+        );
+
+        const key = `${date.getFullYear()}-${date.getMonth()}`;
+
+        map.set(key, {
+          month:
+            date.toLocaleDateString(
+              "vi-VN",
+              {
+                month: "short",
+              }
+            ),
+
+          revenue: 0,
+        });
+      }
+
+      treatments.forEach((treatment) => {
+        const date = new Date(
+          treatment.treatment_date
+        );
+
+        const key = `${date.getFullYear()}-${date.getMonth()}`;
+
+        if (map.has(key)) {
+          map.get(key).revenue += Number(
+            treatment.total_amount || 0
+          );
+        }
       });
-    }
 
-    treatments.forEach((t) => {
-      const d = new Date(t.treatment_date);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      return Array.from(map.values());
+    }, [treatments]);
 
-      if (map.has(key)) map.get(key).revenue += Number(t.total_amount || 0);
-    });
+  /*
+  |--------------------------------------------------------------------------
+  | TREATMENT STATUS
+  |--------------------------------------------------------------------------
+  */
 
-    return Array.from(map.values());
-  }, [treatments]);
+  const treatmentStatusData =
+    useMemo(() => {
+      const map = new Map();
 
-  const treatmentStatusData = useMemo(() => {
-    const map = new Map();
+      treatments.forEach((treatment) => {
+        const status =
+          treatment.status || "Khác";
 
-    treatments.forEach((t) => {
-      const s = t.status || "Khác";
-      map.set(s, (map.get(s) || 0) + 1);
-    });
+        map.set(
+          status,
+          (map.get(status) || 0) + 1
+        );
+      });
 
-    return Array.from(map.entries()).map(([name, value]) => ({
-      name,
-      value,
-    }));
-  }, [treatments]);
+      return Array.from(
+        map.entries()
+      ).map(([name, value]) => ({
+        name,
+        value,
+      }));
+    }, [treatments]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | KPI
+  |--------------------------------------------------------------------------
+  */
 
   const allKpis = [
     {
       label: "Tổng bệnh nhân",
+
       value: totalPatients,
+
       icon: Users,
-      description: "Xem danh sách bệnh nhân",
+
+      description:
+        "Xem danh sách bệnh nhân",
+
       to: "/patients",
-      roles: ["admin", "developers", "telesale", "receptionist"],
+
+      roles: [
+        "admin",
+        "developers",
+        "telesale",
+        "receptionist",
+      ],
     },
+
     {
       label: "Lịch hẹn sắp tới",
+
       value: upcomingAppointments,
+
       icon: CalendarIcon,
+
       description: "Xem lịch hẹn",
+
       to: "/calendar",
-      roles: ["admin", "developers", "telesale", "receptionist"],
+
+      roles: [
+        "admin",
+        "developers",
+        "telesale",
+        "receptionist",
+      ],
     },
+
     {
-      label: "Bệnh nhân hoàn thành điều trị",
+      label:
+        "Bệnh nhân hoàn thành điều trị",
+
       value: completedTreatments,
+
       icon: CheckCircle,
-      description: "Xem bệnh nhân đã hoàn thành điều trị",
+
+      description:
+        "Xem bệnh nhân đã hoàn thành điều trị",
+
       to: "/patients?status=done",
-      roles: ["admin", "developers", "receptionist"],
+
+      roles: [
+        "admin",
+        "developers",
+        "receptionist",
+      ],
     },
+
     {
       label: "Doanh thu tháng",
-      value: monthlyRevenue.toLocaleString("vi-VN") + " ₫",
+
+      value:
+        monthlyRevenue.toLocaleString(
+          "vi-VN"
+        ) + " ₫",
+
       icon: TrendingUp,
-      description: "Thống kê doanh thu",
+
+      description:
+        "Thống kê doanh thu",
+
       to: "/revenue",
-      roles: ["admin", "developers", "receptionist"],
+
+      roles: [
+        "admin",
+        "developers",
+        "receptionist",
+      ],
     },
+
     {
       label: "Phiếu vật tư",
+
       value: movements.length,
+
       icon: Package,
-      description: "Xem quản lý vật tư",
+
+      description:
+        "Xem quản lý vật tư",
+
       to: "/inventory/movements",
-      roles: ["admin", "developers", "assistant", "receptionist"],
+
+      roles: [
+        "admin",
+        "developers",
+        "assistant",
+        "receptionist",
+      ],
     },
   ];
 
-  const kpis = allKpis.filter((kpi) => !kpi.roles || kpi.roles.includes(role));
+  const kpis =
+    allKpis.filter(
+      (kpi) =>
+        !kpi.roles ||
+        kpi.roles.includes(role)
+    );
 
-  const recentPatients = useMemo(() => {
-    return [...patients]
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 5);
-  }, [patients]);
+  /*
+  |--------------------------------------------------------------------------
+  | RECENT PATIENTS
+  |--------------------------------------------------------------------------
+  */
 
-  const today = new Date();
+  const recentPatients =
+    useMemo(() => {
+      return [...patients]
+        .sort(
+          (a, b) =>
+            new Date(b.created_at) -
+            new Date(a.created_at)
+        )
+        .slice(0, 5);
+    }, [patients]);
 
-  const formattedDate = today.toLocaleDateString("vi-VN", {
-    weekday: "long",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
 
   return (
     <AdminLayout>
       <div className="space-y-6 sm:space-y-8">
 
-        {/* HEADER */}
+        {/* ================================================================
+            UPCOMING APPOINTMENT NOTIFICATION
+        ================================================================ */}
 
-        <div className="flex items-center justify-between">
-          <div className="page-header sm:mb-2">
-            <div className="page-header-main">
-              <div className="page-header-icon">
-                <Activity className="h-5 w-5 sm:h-6 sm:w-6" />
-              </div>
-
-              <div>
-                <h2 className="page-header-title">Bảng điều khiển</h2>
-                <p className="page-header-subtitle">{formattedDate}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* BUTTON ENABLE PUSH */}
-
+        <div className="flex justify-end">
           <EnableNotification />
         </div>
 
-        {/* KPI */}
+        {/* ================================================================
+            KPI
+        ================================================================ */}
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {kpis.map((kpi) => (
-            <KPIStatCard key={kpi.label} {...kpi} />
+            <KPIStatCard
+              key={kpi.label}
+              {...kpi}
+            />
           ))}
         </section>
 
-        {/* CHARTS */}
+        {/* ================================================================
+            CHARTS
+        ================================================================ */}
 
-        {['admin', 'developers', 'telesale', 'receptionist'].includes(role) && (
+        {[
+          "admin",
+          "developers",
+          "telesale",
+          "receptionist",
+        ].includes(role) && (
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
+
             <div className="space-y-6">
               <ChartCard
                 title="Doanh thu theo tháng"
                 subtitle="6 tháng gần nhất"
                 icon={TrendingUp}
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={monthlyRevenueTrend}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                >
+                  <LineChart
+                    data={
+                      monthlyRevenueTrend
+                    }
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                    />
+
+                    <XAxis
+                      dataKey="month"
+                    />
+
                     <YAxis />
+
                     <Tooltip />
+
                     <Line
                       type="monotone"
                       dataKey="revenue"
@@ -321,10 +581,15 @@ const Dashboard = () => {
               subtitle="Phân bố"
               icon={Activity}
             >
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
                 <PieChart>
                   <Pie
-                    data={treatmentStatusData}
+                    data={
+                      treatmentStatusData
+                    }
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -332,66 +597,129 @@ const Dashboard = () => {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {treatmentStatusData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
+                    {treatmentStatusData.map(
+                      (
+                        entry,
+                        index
+                      ) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={
+                            COLORS[
+                              index %
+                                COLORS.length
+                            ]
+                          }
+                        />
+                      )
+                    )}
                   </Pie>
+
                   <Tooltip />
+
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
             </ChartCard>
+
           </section>
         )}
 
-        {/* RECENT PATIENTS */}
+        {/* ================================================================
+            RECENT PATIENTS
+        ================================================================ */}
 
-        {['admin', 'developers', 'telesale', 'receptionist'].includes(role) && (
+        {[
+          "admin",
+          "developers",
+          "telesale",
+          "receptionist",
+        ].includes(role) && (
           <section className="card-portal">
+
             <div className="mb-4 flex items-center justify-between">
+
               <div className="flex items-center gap-3">
+
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Users className="h-5 w-5" />
                 </div>
+
                 <h3 className="text-sm font-semibold text-gray-900">
                   Bệnh nhân mới nhất
                 </h3>
+
               </div>
+
               <button
-                onClick={() => navigate("/patients")}
+                type="button"
+                onClick={() =>
+                  navigate("/patients")
+                }
                 className="text-xs font-medium text-primary hover:underline"
               >
                 Xem tất cả
               </button>
+
             </div>
 
             <div className="overflow-x-auto">
+
               <table className="w-full text-left text-sm">
+
                 <thead>
                   <tr className="border-b border-gray-100 text-gray-400">
-                    <th className="pb-3 font-medium">Họ tên</th>
-                    <th className="pb-3 font-medium">Số điện thoại</th>
-                    <th className="pb-3 font-medium text-right">Ngày tạo</th>
+
+                    <th className="pb-3 font-medium">
+                      Họ tên
+                    </th>
+
+                    <th className="pb-3 font-medium">
+                      Số điện thoại
+                    </th>
+
+                    <th className="pb-3 text-right font-medium">
+                      Ngày tạo
+                    </th>
+
                   </tr>
                 </thead>
+
                 <tbody className="divide-y divide-gray-50">
-                  {recentPatients.map((p) => (
-                    <tr key={p.id} className="group hover:bg-gray-50/50">
-                      <td className="py-3 font-medium text-gray-900">
-                        {p.full_name}
-                      </td>
-                      <td className="py-3 text-gray-500">{p.phone}</td>
-                      <td className="py-3 text-right text-gray-400">
-                        {new Date(p.created_at).toLocaleDateString("vi-VN")}
-                      </td>
-                    </tr>
-                  ))}
+
+                  {recentPatients.map(
+                    (patient) => (
+                      <tr
+                        key={patient.id}
+                        className="group hover:bg-gray-50/50"
+                      >
+
+                        <td className="py-3 font-medium text-gray-900">
+                          {patient.full_name}
+                        </td>
+
+                        <td className="py-3 text-gray-500">
+                          {patient.phone}
+                        </td>
+
+                        <td className="py-3 text-right text-gray-400">
+                          {new Date(
+                            patient.created_at
+                          ).toLocaleDateString(
+                            "vi-VN"
+                          )}
+                        </td>
+
+                      </tr>
+                    )
+                  )}
+
                 </tbody>
+
               </table>
+
             </div>
+
           </section>
         )}
 
