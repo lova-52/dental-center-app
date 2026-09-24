@@ -7,7 +7,9 @@ import React, {
 
 import {
   NavLink,
+  replace,
   useLocation,
+  useNavigate,
 } from 'react-router-dom';
 
 import {
@@ -27,12 +29,14 @@ import {
 import { useAuth } from '../context/AuthContext';
 import AIChatWidget from './AIChatWidget';
 
-
 const AdminLayout = ({
   children,
 }) => {
   const location =
     useLocation();
+
+  const navigate =
+    useNavigate();
 
   const {
     role,
@@ -47,6 +51,10 @@ const AdminLayout = ({
   const handleLogout =
     async () => {
       await signOut();
+
+      navigate('/login', {
+        replace: true,
+      });
     };
 
 

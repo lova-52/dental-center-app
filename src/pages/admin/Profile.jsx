@@ -409,6 +409,7 @@ const Profile = () => {
         .update({
           is_active: false,
           revoked_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq('id', device.id)
         .eq('user_id', user.id);

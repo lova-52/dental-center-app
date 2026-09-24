@@ -49,12 +49,27 @@ export const AuthProvider = ({
     useState(true);
 
 
-  const syncInProgressRef =
-    useRef(false);
+  /*
+   * Không dùng boolean lock đơn giản nữa.
+   *
+   * syncPromiseRef chứa promise hiện tại.
+   *
+   * Nếu Login.jsx và onAuthStateChange
+   * cùng gọi refreshAuth(), cả hai sẽ
+   * chờ cùng một lần sync thay vì một
+   * bên nhận ok:false.
+   */
+
+  const syncPromiseRef =
+    useRef(null);
 
   const mountedRef =
     useRef(false);
 
+
+  // =========================================================
+  // RESET
+  // =========================================================
 
   const resetAuthState =
     useCallback(() => {
@@ -64,6 +79,10 @@ export const AuthProvider = ({
       setLoading(false);
     }, []);
 
+
+  // =========================================================
+  // LOCAL LOGOUT
+  // =========================================================
 
   const forceLocalLogout =
     useCallback(
@@ -76,11 +95,10 @@ export const AuthProvider = ({
             reason
           );
 
-          await supabase.auth.signOut(
-            {
-              scope: 'local',
-            }
-          );
+
+          await supabase.auth.signOut({
+            scope: 'local',
+          });
         } catch (error) {
           console.error(
             'Local sign out error:',
@@ -94,21 +112,16 @@ export const AuthProvider = ({
     );
 
 
-  /*
-   * Đăng ký thiết bị mới.
-   *
-   * Chỉ gọi location khi:
-   * - thiết bị chưa tồn tại
-   * - hoặc user vừa đăng nhập
-   *
-   * Không gọi location trong heartbeat.
-   */
+  // =========================================================
+  // REGISTER / REACTIVATE DEVICE
+  // =========================================================
 
-  const registerNewDevice =
+  const registerOrReactivateDevice =
     useCallback(
       async (liveUser) => {
         const device =
           getDeviceInfo();
+
 
         if (!device.deviceId) {
           throw new Error(
@@ -117,12 +130,148 @@ export const AuthProvider = ({
         }
 
 
-        const location =
-          await getDeviceLocation();
-
-
         const now =
           new Date().toISOString();
+
+
+        /*
+         * Kiểm tra record hiện tại.
+         */
+
+        const {
+          data: existingDevice,
+          error: existingError,
+        } =
+          await supabase
+            .from('login_devices')
+            .select(`
+              id,
+              device_id,
+              device_type,
+              device_name,
+              os_name,
+              browser_name,
+              location_city,
+              location_country,
+              location_label,
+              first_login_at,
+              last_login_at,
+              last_seen_at,
+              is_active,
+              revoked_at
+            `)
+            .eq(
+              'user_id',
+              liveUser.id
+            )
+            .eq(
+              'device_id',
+              device.deviceId
+            )
+            .maybeSingle();
+
+
+        if (existingError) {
+          throw existingError;
+        }
+
+
+        // -----------------------------------------------------
+        // DEVICE ALREADY EXISTS
+        // -----------------------------------------------------
+
+        if (existingDevice) {
+
+          /*
+           * revoked_at != null
+           *
+           * Đây là thiết bị bị người dùng
+           * đăng xuất từ một thiết bị khác.
+           *
+           * Không tự động kích hoạt lại.
+           */
+
+          if (
+            existingDevice.revoked_at
+          ) {
+            throw new Error(
+              'Thiết bị này đã bị đăng xuất khỏi tài khoản. Vui lòng đăng nhập bằng thiết bị khác hoặc liên hệ quản trị viên.'
+            );
+          }
+
+
+          /*
+           * Logout bình thường:
+           *
+           * is_active = false
+           * revoked_at = null
+           *
+           * Cho phép đăng nhập lại.
+           */
+
+          const {
+            data,
+            error,
+          } =
+            await supabase
+              .from('login_devices')
+              .update({
+                device_type:
+                  device.deviceType,
+
+                device_name:
+                  device.deviceName,
+
+                os_name:
+                  device.osName,
+
+                browser_name:
+                  device.browserName,
+
+                last_login_at:
+                  now,
+
+                last_seen_at:
+                  now,
+
+                is_active:
+                  true,
+
+                revoked_at:
+                  null,
+              })
+              .eq(
+                'id',
+                existingDevice.id
+              )
+              .eq(
+                'user_id',
+                liveUser.id
+              )
+              .select()
+              .single();
+
+
+          if (error) {
+            throw error;
+          }
+
+
+          return data;
+        }
+
+
+        // -----------------------------------------------------
+        // NEW DEVICE
+        // -----------------------------------------------------
+
+        /*
+         * Chỉ thiết bị mới mới cần
+         * gọi API xác định location.
+         */
+
+        const location =
+          await getDeviceLocation();
 
 
         const {
@@ -130,9 +279,7 @@ export const AuthProvider = ({
           error,
         } =
           await supabase
-            .from(
-              'login_devices'
-            )
+            .from('login_devices')
             .insert({
               user_id:
                 liveUser.id,
@@ -191,18 +338,16 @@ export const AuthProvider = ({
     );
 
 
-  /*
-   * Heartbeat.
-   *
-   * Chỉ cập nhật last_seen_at.
-   * Không gọi API vị trí.
-   */
+  // =========================================================
+  // HEARTBEAT
+  // =========================================================
 
   const updateDeviceHeartbeat =
     useCallback(
       async (userId) => {
         const deviceId =
           getOrCreateDeviceId();
+
 
         if (
           !userId ||
@@ -216,9 +361,7 @@ export const AuthProvider = ({
           error,
         } =
           await supabase
-            .from(
-              'login_devices'
-            )
+            .from('login_devices')
             .update({
               last_seen_at:
                 new Date().toISOString(),
@@ -248,272 +391,41 @@ export const AuthProvider = ({
     );
 
 
-  const syncCurrentSession =
+  // =========================================================
+  // SYNC INTERNAL
+  // =========================================================
+
+  const syncCurrentSessionInternal =
     useCallback(
       async ({
         silent = true,
       } = {}) => {
+
         if (
-          syncInProgressRef.current
+          !silent &&
+          !mountedRef.current
         ) {
-          return {
-            user: null,
-            role: null,
-            profile: null,
-            ok: false,
-          };
+          setLoading(true);
         }
 
 
-        syncInProgressRef.current =
-          true;
+        // -----------------------------------------------------
+        // SESSION
+        // -----------------------------------------------------
+
+        const {
+          data: sessionData,
+          error: sessionError,
+        } =
+          await supabase.auth.getSession();
 
 
-        try {
-          if (
-            !silent &&
-            !mountedRef.current
-          ) {
-            setLoading(true);
-          }
-
-
-          /*
-           * Session
-           */
-
-          const {
-            data: sessionData,
-            error: sessionError,
-          } =
-            await supabase.auth.getSession();
-
-
-          if (
-            sessionError ||
-            !sessionData?.session
-          ) {
-            resetAuthState();
-
-            return {
-              user: null,
-              role: null,
-              profile: null,
-              ok: false,
-            };
-          }
-
-
-          /*
-           * User
-           */
-
-          const {
-            data: userData,
-            error: userError,
-          } =
-            await supabase.auth.getUser();
-
-
-          const liveUser =
-            userData?.user;
-
-
-          if (
-            userError ||
-            !liveUser
-          ) {
-            await forceLocalLogout(
-              'Không thể xác thực phiên đăng nhập.'
-            );
-
-            return {
-              user: null,
-              role: null,
-              profile: null,
-              ok: false,
-            };
-          }
-
-
-          /*
-           * Profile
-           */
-
-          const {
-            data: userProfile,
-            error: profileError,
-          } =
-            await supabase
-              .from('profiles')
-              .select(
-                'id, full_name, role, avatar_url'
-              )
-              .eq(
-                'id',
-                liveUser.id
-              )
-              .maybeSingle();
-
-
-          if (
-            profileError ||
-            !userProfile
-          ) {
-            await forceLocalLogout(
-              'Không tìm thấy hồ sơ người dùng.'
-            );
-
-            return {
-              user: null,
-              role: null,
-              profile: null,
-              ok: false,
-            };
-          }
-
-
-          /*
-           * Device
-           */
-
-          const deviceId =
-            getOrCreateDeviceId();
-
-
-          const {
-            data: deviceRecord,
-            error: deviceError,
-          } =
-            await supabase
-              .from(
-                'login_devices'
-              )
-              .select(
-                'id, device_id, is_active, revoked_at'
-              )
-              .eq(
-                'user_id',
-                liveUser.id
-              )
-              .eq(
-                'device_id',
-                deviceId
-              )
-              .maybeSingle();
-
-
-          if (deviceError) {
-            console.error(
-              'Device check error:',
-              deviceError
-            );
-
-            await forceLocalLogout(
-              'Không thể kiểm tra thiết bị đăng nhập.'
-            );
-
-            return {
-              user: null,
-              role: null,
-              profile: null,
-              ok: false,
-            };
-          }
-
-
-          /*
-           * Thiết bị chưa có trong database.
-           */
-
-          if (!deviceRecord) {
-            try {
-              await registerNewDevice(
-                liveUser
-              );
-            } catch (error) {
-              console.error(
-                'Device registration error:',
-                error
-              );
-
-              await forceLocalLogout(
-                'Không thể đăng ký thiết bị đăng nhập.'
-              );
-
-              return {
-                user: null,
-                role: null,
-                profile: null,
-                ok: false,
-              };
-            }
-          }
-
-
-          /*
-           * Thiết bị đã bị revoke.
-           */
-
-          if (
-            deviceRecord &&
-            (
-              deviceRecord.is_active ===
-                false ||
-              deviceRecord.revoked_at
-            )
-          ) {
-            await forceLocalLogout(
-              'Thiết bị này đã được đăng xuất khỏi tài khoản.'
-            );
-
-            return {
-              user: null,
-              role: null,
-              profile: null,
-              ok: false,
-            };
-          }
-
-
-          /*
-           * Heartbeat.
-           */
-
-          await updateDeviceHeartbeat(
-            liveUser.id
-          );
-
-
-          /*
-           * React state.
-           */
-
-          setUser(liveUser);
-
-          setRole(
-            userProfile.role ||
-              null
-          );
-
-          setProfile(
-            userProfile
-          );
-
-
-          return {
-            user: liveUser,
-            role:
-              userProfile.role ||
-              null,
-            profile:
-              userProfile,
-            ok: true,
-          };
-        } catch (error) {
+        if (
+          sessionError
+        ) {
           console.error(
-            'Auth sync error:',
-            error
+            'Get session error:',
+            sessionError
           );
 
           resetAuthState();
@@ -523,29 +435,284 @@ export const AuthProvider = ({
             role: null,
             profile: null,
             ok: false,
+            error:
+              sessionError,
           };
-        } finally {
-          mountedRef.current =
-            true;
-
-          setLoading(false);
-
-          syncInProgressRef.current =
-            false;
         }
+
+
+        if (
+          !sessionData?.session
+        ) {
+          resetAuthState();
+
+          return {
+            user: null,
+            role: null,
+            profile: null,
+            ok: false,
+          };
+        }
+
+
+        // -----------------------------------------------------
+        // USER
+        // -----------------------------------------------------
+
+        const {
+          data: userData,
+          error: userError,
+        } =
+          await supabase.auth.getUser();
+
+
+        const liveUser =
+          userData?.user;
+
+
+        if (
+          userError ||
+          !liveUser
+        ) {
+          const error =
+            userError ||
+            new Error(
+              'Không thể xác thực người dùng.'
+            );
+
+
+          console.error(
+            'Get user error:',
+            error
+          );
+
+
+          await forceLocalLogout(
+            'Không thể xác thực phiên đăng nhập.'
+          );
+
+
+          return {
+            user: null,
+            role: null,
+            profile: null,
+            ok: false,
+            error,
+          };
+        }
+
+
+        // -----------------------------------------------------
+        // PROFILE
+        // -----------------------------------------------------
+
+        const {
+          data: userProfile,
+          error: profileError,
+        } =
+          await supabase
+            .from('profiles')
+            .select(
+              'id, full_name, role, avatar_url'
+            )
+            .eq(
+              'id',
+              liveUser.id
+            )
+            .maybeSingle();
+
+
+        if (
+          profileError ||
+          !userProfile
+        ) {
+          const error =
+            profileError ||
+            new Error(
+              'Không tìm thấy hồ sơ người dùng.'
+            );
+
+
+          console.error(
+            'Profile sync error:',
+            error
+          );
+
+
+          await forceLocalLogout(
+            'Không tìm thấy hồ sơ người dùng.'
+          );
+
+
+          return {
+            user: null,
+            role: null,
+            profile: null,
+            ok: false,
+            error,
+          };
+        }
+
+
+        // -----------------------------------------------------
+        // DEVICE
+        // -----------------------------------------------------
+
+        try {
+          await registerOrReactivateDevice(
+            liveUser
+          );
+        } catch (deviceError) {
+          console.error(
+            'Device synchronization error:',
+            deviceError
+          );
+
+
+          await forceLocalLogout(
+            deviceError?.message ||
+              'Không thể đồng bộ thiết bị đăng nhập.'
+          );
+
+
+          return {
+            user: null,
+            role: null,
+            profile: null,
+            ok: false,
+            error:
+              deviceError,
+          };
+        }
+
+
+        // -----------------------------------------------------
+        // HEARTBEAT
+        // -----------------------------------------------------
+
+        await updateDeviceHeartbeat(
+          liveUser.id
+        );
+
+
+        // -----------------------------------------------------
+        // STATE
+        // -----------------------------------------------------
+
+        setUser(liveUser);
+
+        setRole(
+          userProfile.role ||
+            null
+        );
+
+        setProfile(
+          userProfile
+        );
+
+
+        return {
+          user: liveUser,
+
+          role:
+            userProfile.role ||
+            null,
+
+          profile:
+            userProfile,
+
+          ok: true,
+        };
       },
       [
         forceLocalLogout,
-        registerNewDevice,
+        registerOrReactivateDevice,
         resetAuthState,
         updateDeviceHeartbeat,
       ]
     );
 
 
-  /*
-   * Update profile
-   */
+  // =========================================================
+  // PUBLIC SYNC
+  // =========================================================
+
+  const syncCurrentSession =
+    useCallback(
+      async ({
+        silent = true,
+      } = {}) => {
+
+        /*
+         * Nếu đang có sync:
+         *
+         * KHÔNG return false.
+         *
+         * Chờ đúng promise đang chạy.
+         */
+
+        if (
+          syncPromiseRef.current
+        ) {
+          return syncPromiseRef.current;
+        }
+
+
+        const promise =
+          (async () => {
+            try {
+              return await syncCurrentSessionInternal({
+                silent,
+              });
+            } catch (error) {
+              console.error(
+                'Auth sync error:',
+                error
+              );
+
+
+              resetAuthState();
+
+
+              return {
+                user: null,
+                role: null,
+                profile: null,
+                ok: false,
+                error,
+              };
+            } finally {
+              setLoading(false);
+            }
+          })();
+
+
+        syncPromiseRef.current =
+          promise;
+
+
+        try {
+          return await promise;
+        } finally {
+          if (
+            syncPromiseRef.current ===
+            promise
+          ) {
+            syncPromiseRef.current =
+              null;
+          }
+        }
+      },
+      [
+        resetAuthState,
+        syncCurrentSessionInternal,
+      ]
+    );
+
+
+  // =========================================================
+  // UPDATE PROFILE
+  // =========================================================
 
   const updateProfile =
     useCallback(
@@ -620,9 +787,9 @@ export const AuthProvider = ({
     );
 
 
-  /*
-   * Logout current device
-   */
+  // =========================================================
+  // LOGOUT CURRENT DEVICE
+  // =========================================================
 
   const signOut =
     useCallback(
@@ -632,37 +799,71 @@ export const AuthProvider = ({
             getOrCreateDeviceId();
 
 
+          /*
+           * LOGOUT BÌNH THƯỜNG
+           *
+           * Không set revoked_at.
+           *
+           * Vì người dùng vẫn được phép
+           * đăng nhập lại trên chính thiết bị.
+           */
+
           if (
             user?.id &&
             deviceId
           ) {
-            await supabase
-              .from(
-                'login_devices'
-              )
-              .update({
-                is_active:
-                  false,
+            const {
+              error,
+            } =
+              await supabase
+                .from(
+                  'login_devices'
+                )
+                .update({
+                  is_active:
+                    false,
 
-                revoked_at:
-                  new Date().toISOString(),
-              })
-              .eq(
-                'user_id',
-                user.id
-              )
-              .eq(
-                'device_id',
-                deviceId
+                  revoked_at:
+                    null,
+
+                  last_seen_at:
+                    new Date().toISOString(),
+                })
+                .eq(
+                  'user_id',
+                  user.id
+                )
+                .eq(
+                  'device_id',
+                  deviceId );
+
+
+            if (error) {
+              console.error(
+                'Device logout update error:',
+                error
               );
+            }
           }
 
 
-          await supabase.auth.signOut(
-            {
+          /*
+           * CHỈ logout session hiện tại.
+           *
+           * Không ảnh hưởng thiết bị khác.
+           */
+
+          const {
+            error: signOutError,
+          } =
+            await supabase.auth.signOut({
               scope: 'local',
-            }
-          );
+            });
+
+
+          if (signOutError) {
+            throw signOutError;
+          }
         } catch (error) {
           console.error(
             'Sign out error:',
@@ -679,9 +880,9 @@ export const AuthProvider = ({
     );
 
 
-  /*
-   * Initial auth
-   */
+  // =========================================================
+  // INITIAL AUTH
+  // =========================================================
 
   useEffect(() => {
     let mounted = true;
@@ -693,20 +894,19 @@ export const AuthProvider = ({
           return;
         }
 
-        await syncCurrentSession(
-          {
-            silent: false,
-          }
-        );
+
+        await syncCurrentSession({
+          silent: false,
+        });
       };
 
 
     initialize();
 
 
-    /*
-     * Supabase listener
-     */
+    // -------------------------------------------------------
+    // SUPABASE AUTH LISTENER
+    // -------------------------------------------------------
 
     const {
       data: authListener,
@@ -716,6 +916,7 @@ export const AuthProvider = ({
           event,
           session
         ) => {
+
           window.setTimeout(
             () => {
               if (!mounted) {
@@ -737,11 +938,9 @@ export const AuthProvider = ({
                 event ===
                   'INITIAL_SESSION'
               ) {
-                syncCurrentSession(
-                  {
-                    silent: true,
-                  }
-                );
+                syncCurrentSession({
+                  silent: true,
+                });
               }
             },
             0
@@ -750,9 +949,9 @@ export const AuthProvider = ({
       );
 
 
-    /*
-     * Focus
-     */
+    // -------------------------------------------------------
+    // FOCUS
+    // -------------------------------------------------------
 
     const onFocus =
       () => {
@@ -762,9 +961,9 @@ export const AuthProvider = ({
       };
 
 
-    /*
-     * Visibility
-     */
+    // -------------------------------------------------------
+    // VISIBILITY
+    // -------------------------------------------------------
 
     const onVisibilityChange =
       () => {
@@ -779,9 +978,9 @@ export const AuthProvider = ({
       };
 
 
-    /*
-     * Heartbeat
-     */
+    // -------------------------------------------------------
+    // HEARTBEAT
+    // -------------------------------------------------------
 
     const intervalId =
       window.setInterval(
@@ -814,17 +1013,21 @@ export const AuthProvider = ({
     return () => {
       mounted = false;
 
+
       authListener?.subscription?.unsubscribe();
+
 
       window.removeEventListener(
         'focus',
         onFocus
       );
 
+
       document.removeEventListener(
         'visibilitychange',
         onVisibilityChange
       );
+
 
       window.clearInterval(
         intervalId
@@ -835,6 +1038,10 @@ export const AuthProvider = ({
     syncCurrentSession,
   ]);
 
+
+  // =========================================================
+  // CONTEXT VALUE
+  // =========================================================
 
   const value = {
     user,
